@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     apple: "/icon.svg",
   },
   verification: {
-    google: "cwxA_7eQGZh2sP-o-oefpqBvNhe90rd5ts3z-twR_KQ",
+    google: "aWAddGqb93o49xZGCVOnpxy77vk6BI0MW3Yo7cj-6tU",
   },
 };
 
