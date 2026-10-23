@@ -1,3 +1,4 @@
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata, Viewport } from "next";
 import "./global.css";
@@ -64,6 +65,7 @@ export default function RootLayout({
         <WebsiteLoader />
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
