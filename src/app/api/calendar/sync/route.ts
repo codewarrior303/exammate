@@ -2,9 +2,10 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { isTrustedMutationRequest, getClientIp, checkRateLimit } from "@/lib/api-security";
+import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 const MAX_REQUEST_BYTES = 512 * 1024;
+const MAX_EXAMS_PER_SYNC = 100;
 
 type Exam = {
   id: string;
@@ -23,52 +24,51 @@ function eventId(id: string) {
   return `e${createHash("sha256").update(id).digest("hex")}`;
 }
 
-function computeExamReminders(examDate: string, startTime: string): { method: string; minutes: number }[] {
-  const eventStartMs = new Date(`${examDate}T${startTime}:00+06:00`).getTime();
-  const now = Date.now();
+function formatExamTime(time: string): string {
+  const [hourText, minuteText] = time.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  const hour12 = hour % 12 || 12;
+  const suffix = hour >= 12 ? "PM" : "AM";
+  return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+}
 
-  const [y, m, d] = examDate.split("-").map(Number);
-  const dayBefore = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
-  dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
-  const prevYear = dayBefore.getUTCFullYear();
-  const prevMonth = String(dayBefore.getUTCMonth() + 1).padStart(2, "0");
-  const prevDay = String(dayBefore.getUTCDate()).padStart(2, "0");
-  const prevDateStr = `${prevYear}-${prevMonth}-${prevDay}`;
+function escapeCalendarText(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  })[character] ?? character);
+}
 
-  // 1. Morning reminder: 9:00 AM on the day before the exam
-  const morningMs = new Date(`${prevDateStr}T09:00:00+06:00`).getTime();
-  // 2. Night reminder: 8:00 PM (20:00) on the day before the exam
-  const nightMs = new Date(`${prevDateStr}T20:00:00+06:00`).getTime();
-
-  const overrides: { method: string; minutes: number }[] = [];
-
-  // If 9:00 AM on the day before is still in the future:
-  if (morningMs > now) {
-    const morningMinutes = Math.round((eventStartMs - morningMs) / (60 * 1000));
-    if (morningMinutes > 0 && morningMinutes <= 40320) {
-      overrides.push({ method: "popup", minutes: morningMinutes });
+async function readBoundedBody(request: Request): Promise<string> {
+  const reader = request.body?.getReader();
+  if (!reader) throw new Error("empty");
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > MAX_REQUEST_BYTES) {
+        await reader.cancel();
+        throw new Error("too_large");
+      }
+      chunks.push(value);
     }
+  } finally {
+    reader.releaseLock();
   }
-
-  // If 8:00 PM on the day before is still in the future:
-  if (nightMs > now) {
-    const nightMinutes = Math.round((eventStartMs - nightMs) / (60 * 1000));
-    if (nightMinutes > 0 && nightMinutes <= 40320) {
-      overrides.push({ method: "popup", minutes: nightMinutes });
-    }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
   }
+  return new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+}
 
-  // Fallback: If both previous-day reminders have already passed, but the exam is still upcoming:
-  if (overrides.length === 0 && eventStartMs > now) {
-    const minutesLeft = Math.round((eventStartMs - now) / (60 * 1000));
-    if (minutesLeft >= 60) {
-      overrides.push({ method: "popup", minutes: 60 });
-    } else if (minutesLeft > 15) {
-      overrides.push({ method: "popup", minutes: 15 });
-    }
-  }
-
-  return overrides;
+function hasControlCharacters(value: string): boolean {
+  return /[\u0000-\u001F\u007F]/.test(value);
 }
 
 export async function GET() {
@@ -83,24 +83,12 @@ export async function GET() {
     if (!googleAccount) {
       return NextResponse.json({ connected: false, hasCalendarScope: false });
     }
-    const token = await auth.api.getAccessToken({
-      body: { accountId: googleAccount.id },
-      headers: requestHeaders,
-    });
-    if (!token?.accessToken) {
-      return NextResponse.json({ connected: true, hasCalendarScope: false });
-    }
-    const infoRes = await fetch(
-      `https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${token.accessToken}`,
-      { cache: "no-store" }
+    const scopes = googleAccount.scopes ?? [];
+    const hasCalendarScope = scopes.some((scope) =>
+      scope === "https://www.googleapis.com/auth/calendar" ||
+      scope === "https://www.googleapis.com/auth/calendar.events"
     );
-    if (infoRes.ok) {
-      const data = (await infoRes.json()) as { scope?: string };
-      const scopes = data.scope ? data.scope.split(" ") : [];
-      const hasCalendarScope = scopes.some((s) => s.includes("calendar.events") || s.includes("calendar"));
-      return NextResponse.json({ connected: true, hasCalendarScope });
-    }
-    return NextResponse.json({ connected: true, hasCalendarScope: false });
+    return NextResponse.json({ connected: true, hasCalendarScope });
   } catch {
     return NextResponse.json({ connected: false, hasCalendarScope: false });
   }
@@ -112,14 +100,19 @@ export async function POST(request: Request) {
   }
 
   const clientIp = getClientIp(request);
-  const rateLimit = checkRateLimit(`calendar_sync:${clientIp}`, 25, 60 * 1000);
+  let rateLimit: { allowed: boolean };
+  try {
+    rateLimit = await checkPersistentRateLimit(`calendar_sync:ip:${clientIp}`, 12, 60 * 1000);
+  } catch {
+    return NextResponse.json({ error: "Calendar sync is temporarily unavailable." }, { status: 503 });
+  }
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment." },
       { status: 429 }
     );
   }
-  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+  if (!/^application\/json(?:\s*;|\s*$)/i.test(request.headers.get("content-type") ?? "")) {
     return NextResponse.json({ error: "Invalid content type." }, { status: 415 });
   }
 
@@ -137,28 +130,42 @@ export async function POST(request: Request) {
   }
   if (!session) return NextResponse.json({ error: "Connect Google to sync schedule." }, { status: 401 });
 
+  try {
+    const userRateLimit = await checkPersistentRateLimit(`calendar_sync:user:${session.user.id}`, 8, 60 * 1000);
+    if (!userRateLimit.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please wait a moment." }, { status: 429 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Calendar sync is temporarily unavailable." }, { status: 503 });
+  }
+
   const googleAccount = accounts?.find((account) => account.providerId === "google");
   if (!googleAccount) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
 
   let exams: Exam[];
   try {
-    const declaredLength = Number(request.headers.get("content-length") ?? 0);
-    if (declaredLength > MAX_REQUEST_BYTES) throw new Error("Request is too large.");
-    const bodyText = await request.text();
-    if (new TextEncoder().encode(bodyText).byteLength > MAX_REQUEST_BYTES) {
-      throw new Error("Request is too large.");
+    const contentLength = request.headers.get("content-length");
+    if (contentLength && (!/^\d+$/.test(contentLength) || Number(contentLength) > MAX_REQUEST_BYTES)) {
+      return NextResponse.json({ error: "Request is too large." }, { status: 413 });
     }
+    const bodyText = await readBoundedBody(request);
     const body = JSON.parse(bodyText) as { exams?: Exam[] };
     exams = body.exams ?? [];
-    if (!Array.isArray(exams) || exams.length > 500 || exams.some((exam) =>
+    if (!Array.isArray(exams) || exams.length > MAX_EXAMS_PER_SYNC || exams.some((exam) =>
       !exam || typeof exam.id !== "string" || exam.id.length < 1 || exam.id.length > 256 ||
-      typeof exam.courseCode !== "string" || exam.courseCode.length < 1 || exam.courseCode.length > 64 ||
-      typeof exam.courseTitle !== "string" || exam.courseTitle.length > 300 ||
-      (exam.faculty !== undefined && (typeof exam.faculty !== "string" || exam.faculty.length > 300)) ||
-      (exam.program !== undefined && (typeof exam.program !== "string" || exam.program.length > 150)) ||
-      !isValidIsoDate(exam.date) || !isValidTime(exam.startTime) || !isValidTime(exam.endTime)
-    )) throw new Error("Invalid exam list.");
-  } catch {
+      !exam.id.trim() || hasControlCharacters(exam.id) ||
+      typeof exam.courseCode !== "string" || exam.courseCode.trim().length < 1 || exam.courseCode.length > 64 || hasControlCharacters(exam.courseCode) ||
+      typeof exam.courseTitle !== "string" || exam.courseTitle.trim().length < 1 || exam.courseTitle.length > 300 || hasControlCharacters(exam.courseTitle) ||
+      (exam.faculty !== undefined && (typeof exam.faculty !== "string" || exam.faculty.length > 300 || hasControlCharacters(exam.faculty))) ||
+      (exam.program !== undefined && (typeof exam.program !== "string" || exam.program.length > 150 || hasControlCharacters(exam.program))) ||
+      !isValidIsoDate(exam.date) || !isValidTime(exam.startTime) || !isValidTime(exam.endTime) ||
+      exam.endTime <= exam.startTime
+    )) throw new Error("invalid");
+    if (new Set(exams.map((exam) => exam.id)).size !== exams.length) throw new Error("duplicates");
+  } catch (error) {
+    if (error instanceof Error && error.message === "too_large") {
+      return NextResponse.json({ error: "Request is too large." }, { status: 413 });
+    }
     return NextResponse.json({ error: "Exam schedule is invalid." }, { status: 400 });
   }
   if (!exams.length) return NextResponse.json({ synced: 0 });
@@ -202,23 +209,46 @@ export async function POST(request: Request) {
     for (const exam of exams) {
       const start = `${exam.date}T${exam.startTime}:00+06:00`;
       const end = `${exam.date}T${exam.endTime}:00+06:00`;
-      const title = `${exam.courseCode} Exam`;
-      const description = [exam.courseTitle, exam.faculty && `Faculty: ${exam.faculty}`, exam.program && `Program: ${exam.program}`].filter(Boolean).join("\n");
-      const reminderOverrides = computeExamReminders(exam.date, exam.startTime);
+      const courseTitle = escapeCalendarText(exam.courseTitle.trim());
+      const courseCode = escapeCalendarText(exam.courseCode.trim());
+      const title = `${courseTitle} (${courseCode})`;
+      const examTime = `${formatExamTime(exam.startTime)} - ${formatExamTime(exam.endTime)}`;
+      const description = `Hello,
+This is a scheduled automated reminder from ExamMate.
+
+📌 EXAM DETAILS:
+Course: ${title}
+Faculty: ${exam.faculty?.trim() ? escapeCalendarText(exam.faculty.trim()) : "Not listed in the routine"}
+Time: ${examTime}
+
+⚠️ CRITICAL CHECKLIST (Before entering the hall):
+. Student ID & Admit Card
+. Pens, Pencils & necessary stationeries
+. Calculator (If applicable)
+
+💡 Pro Tip: Please try to reach your designated exam venue at least 15-20 minutes early to avoid any last-minute rush.
+
+Wishing you the best of luck with your exam!
+🚀 Powered by ExamMate (exammate.triizync.com)`;
       const event = {
         id: eventId(exam.id),
-        summary: title,
+        summary: `Reminder for ExamMate: ${title}`,
         description,
         start: { dateTime: start, timeZone: "Asia/Dhaka" },
         end: { dateTime: end, timeZone: "Asia/Dhaka" },
-        reminders: reminderOverrides.length > 0
-          ? { useDefault: false, overrides: reminderOverrides }
-          : { useDefault: false, overrides: [] },
+        reminders: {
+          useDefault: false,
+          overrides: [
+            { method: "email", minutes: 24 * 60 },
+            { method: "popup", minutes: 60 },
+          ],
+        },
       };
       const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
       const requestOptions: RequestInit = {
         headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(event),
+        signal: AbortSignal.timeout(15_000),
       };
       let response = await fetch(calendarUrl, { ...requestOptions, method: "POST" });
       if (response.status === 409) {
@@ -237,14 +267,13 @@ export async function POST(request: Request) {
             error: "Calendar permission denied. Please allow Calendar access.",
           }, { status: 403 });
         }
-        return NextResponse.json({ error: providerMessage || "Could not save calendar event. Please retry." }, { status: 502 });
+        return NextResponse.json({ error: "Could not save calendar event. Please retry." }, { status: 502 });
       }
       synced += 1;
     }
     return NextResponse.json({ synced });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Google Calendar sync failed.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return NextResponse.json({ error: "Google Calendar sync failed. Please retry." }, { status: 502 });
   }
 }
 

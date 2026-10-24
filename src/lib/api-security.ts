@@ -1,4 +1,6 @@
 import "server-only";
+import { createHash } from "node:crypto";
+import { getAuthDatabase } from "@/lib/auth";
 
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -103,6 +105,44 @@ export function checkRateLimit(
 
   record.timestamps.push(now);
   return { allowed: true, remaining: limit - record.timestamps.length };
+}
+
+/** Mongo-backed fixed-window limiter shared by serverless instances. */
+let rateLimitIndexPromise: Promise<string> | undefined;
+export async function checkPersistentRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): Promise<{ allowed: boolean; remaining: number }> {
+  const db = await getAuthDatabase();
+  const now = Date.now();
+  const windowStart = Math.floor(now / windowMs) * windowMs;
+  const id = createHash("sha256").update(`${key}:${windowStart}`).digest("hex");
+  const collection = db.collection<{ _id: string; count: number; expiresAt: Date }>("apiRateLimits");
+
+  rateLimitIndexPromise ??= collection.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+  await rateLimitIndexPromise;
+  let record;
+  try {
+    record = await collection.findOneAndUpdate(
+      { _id: id },
+      {
+        $inc: { count: 1 },
+        $setOnInsert: { expiresAt: new Date(windowStart + windowMs * 2) },
+      },
+      { upsert: true, returnDocument: "after", includeResultMetadata: false }
+    );
+  } catch (error) {
+    // Concurrent first requests can race on the unique _id during upsert.
+    if (!(error && typeof error === "object" && "code" in error && error.code === 11000)) throw error;
+    record = await collection.findOneAndUpdate(
+      { _id: id },
+      { $inc: { count: 1 } },
+      { returnDocument: "after", includeResultMetadata: false }
+    );
+  }
+  const count = record?.count ?? limit + 1;
+  return { allowed: count <= limit, remaining: Math.max(0, limit - count) };
 }
 
 // Cleanup stale keys every 5 minutes

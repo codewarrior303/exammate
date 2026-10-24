@@ -24,6 +24,7 @@ import {
   Info,
   Link2,
   LoaderCircle,
+  Mail,
   Printer,
   Send,
   ClipboardPaste,
@@ -706,6 +707,28 @@ export default function Home() {
     };
   }, [authSession]);
 
+  // A routine may already exist when the user finishes Google authorization.
+  // Sync it once after both the saved routine and Calendar scope are available.
+  useEffect(() => {
+    if (
+      !authSession ||
+      !isHydrated ||
+      !hasCalendarScope ||
+      !generatedExams.length ||
+      isSampleRoutine ||
+      isRevealingRows ||
+      routineSourceRef.current === "sample"
+    ) return;
+
+    const syncKey = JSON.stringify(generatedExams);
+    if (lastCalendarSyncRef.current === syncKey) return;
+    lastCalendarSyncRef.current = syncKey;
+    const timer = window.setTimeout(() => {
+      void syncCalendar(generatedExams);
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [authSession, generatedExams, hasCalendarScope, isHydrated, isRevealingRows, isSampleRoutine]);
+
   // Auto-dismiss the sync prompt after 20 seconds defaulting to no sync
   useEffect(() => {
     if (!showCalendarSyncPrompt || calendarSyncing || isSyncPromptClosing)
@@ -837,7 +860,7 @@ export default function Home() {
 
   // Auto-resume routine generation if redirected back from Google sign-in
   useEffect(() => {
-    if (typeof window === "undefined" || !authSession?.user) return;
+    if (typeof window === "undefined" || !authSession?.user || !isHydrated) return;
     try {
       const pendingLink = window.sessionStorage.getItem(
         "examMate:pendingDriveLink",
@@ -874,6 +897,20 @@ export default function Home() {
       );
       if (justConnected === "true") {
         window.sessionStorage.removeItem("examMate:justConnectedGoogle");
+        if (
+          generatedExams.length > 0 &&
+          !isSampleRoutine &&
+          routineSourceRef.current !== "sample"
+        ) {
+          const syncKey = JSON.stringify(generatedExams);
+          if (lastCalendarSyncRef.current !== syncKey) {
+            lastCalendarSyncRef.current = syncKey;
+            setMessage("Google connected. Syncing your routine to Calendar…");
+            window.setTimeout(() => {
+              void syncCalendar(generatedExams);
+            }, 500);
+          }
+        }
         window.setTimeout(() => {
           const resultsEl = document.getElementById("results");
           if (resultsEl) {
@@ -894,7 +931,7 @@ export default function Home() {
         }
       }, 400);
     }
-  }, [authSession?.user, generatedExams.length]);
+  }, [authSession?.user, generatedExams, isHydrated, isSampleRoutine]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1540,9 +1577,13 @@ export default function Home() {
           } Auto-syncing to Google Calendar…`,
         );
 
-        window.setTimeout(() => {
-          void syncCalendar(matches);
-        }, 500);
+        const syncKey = JSON.stringify(matches);
+        if (lastCalendarSyncRef.current !== syncKey) {
+          lastCalendarSyncRef.current = syncKey;
+          window.setTimeout(() => {
+            void syncCalendar(matches);
+          }, 500);
+        }
       } else if (isConnected && isVarsity && !hasCalendarScope) {
         // Scenario B: Connected with Varsity Google, but only Drive access was granted (no calendar permission):
         // Show in-table popup dialog asking if user wants to sync calendar.
@@ -2309,7 +2350,7 @@ export default function Home() {
           {/* Left: icon.svg logo + ExamMate */}
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <img
-              src="/icon.svg"
+              src="/exammate-logo.svg"
               alt="ExamMate Logo"
               width="28"
               height="28"
@@ -4517,10 +4558,10 @@ export default function Home() {
           {/* Main Footer Row */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center sm:text-left">
             {/* Left: ExamMate logo (using icon.svg) and short description */}
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:justify-start">
               <div className="flex items-center gap-2.5">
                 <img
-                  src="/icon.svg"
+                  src="/exammate-logo.svg"
                   alt="ExamMate Logo"
                   width="24"
                   height="24"
@@ -4530,10 +4571,21 @@ export default function Home() {
                   Exam<span className="text-neon-mint">Mate</span>
                 </span>
               </div>
+              <span className="hidden text-teal-500/50 sm:inline" aria-hidden="true">·</span>
+              <a
+                href="https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 text-xs text-[#94A3B8] transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1118]"
+                aria-label="Email ExamMate support"
+              >
+                <Mail className="h-3.5 w-3.5 text-teal-400" aria-hidden="true" />
+                exammate.support@gmail.com
+              </a>
             </div>
 
-            {/* Right: Links for "Privacy Policy" and "Terms and Conditions" */}
-            <div className="flex items-center gap-5 text-xs text-[#94A3B8]">
+            {/* Right: Policy links */}
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#94A3B8] sm:justify-end">
               <Link
                 href="/privacy"
                 className="hover:text-teal-300 transition-colors"

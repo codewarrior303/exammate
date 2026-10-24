@@ -175,6 +175,13 @@ export const auth = betterAuth({
   },
 });
 
+/** Shared Mongo database for server-side security controls and application data. */
+export async function getAuthDatabase() {
+  if (!databaseUri) throw new Error("DB_URI is required.");
+  await mongoClient.connect();
+  return mongoClient.db();
+}
+
 export function assertAuthConfiguration() {
   if (googleConfigError) {
     throw new Error(`Google OAuth configuration could not be loaded: ${googleConfigError.message}`);
