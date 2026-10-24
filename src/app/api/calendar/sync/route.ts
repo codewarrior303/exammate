@@ -50,6 +50,23 @@ function escapeCalendarText(value: string): string {
   })[character] ?? character);
 }
 
+function getGreetingName(name?: string | null, email?: string | null): string {
+  const profileName = name?.trim();
+  const emailName = email
+    ?.split("@", 1)[0]
+    ?.split("+", 1)[0]
+    ?.replace(/[._-]+/g, " ")
+    .trim();
+  const source = profileName || emailName || "there";
+  const parts = source.split(/\s+/).filter(Boolean);
+  const selectedName = parts.length > 1 ? parts[parts.length - 1] : parts[0];
+
+  if (!profileName && selectedName) {
+    return selectedName.charAt(0).toUpperCase() + selectedName.slice(1);
+  }
+  return selectedName || "there";
+}
+
 async function readBoundedBody(request: Request): Promise<string> {
   const reader = request.body?.getReader();
   if (!reader) throw new Error("empty");
@@ -236,7 +253,10 @@ export async function POST(request: Request) {
       const courseCode = escapeCalendarText(exam.courseCode.trim());
       const title = `${courseTitle} (${courseCode})`;
       const examTime = `${formatExamTime(exam.startTime)} - ${formatExamTime(exam.endTime)}`;
-      const description = `Hello,<br>
+      const greetingName = escapeCalendarText(
+        getGreetingName(session.user.name, session.user.email),
+      );
+      const description = `Hello ${greetingName},<br>
 This is a scheduled automated reminder from ExamMate.<br><br>
 📌 <strong>EXAM DETAILS:</strong><br>
 Course: ${title}<br>
