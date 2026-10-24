@@ -1,0 +1,25 @@
+ExamMate Proprietary License
+Copyright (c) 2026 Ahnaf Shahriar Abir. All rights reserved.
+
+This license applies only to original ExamMate materials that are owned by
+Ahnaf Shahriar Abir, including original application code, project documentation,
+and visual design. It does not replace or override the rights or license terms
+of third-party software, assets, or contributions.
+
+No permission is granted to copy, modify, publish, distribute, sublicense,
+sell, or create derivative works from the covered ExamMate materials without
+prior written permission from the relevant rights holder.
+
+The credit to Tanjim Abubokor in the README acknowledges the original Python
+routine script shared as project inspiration. It does not claim ownership of
+that script or grant a license to reuse it. Any rights in that script remain
+with its respective rights holder.
+
+Third-party dependencies remain subject to their own licenses. Their license
+notices and terms must be reviewed separately before redistribution.
+
+The ExamMate application is provided "as is", without warranties to the extent
+permitted by applicable law.
+
+For written permission or licensing questions, contact:
+exammate.support@gmail.com

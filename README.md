@@ -1,42 +1,60 @@
-# ExamMate
+<p align="center">
+  <img src="public/exammate-logo.svg" alt="ExamMate logo" width="64" height="64" />
+</p>
 
-ExamMate turns university exam routines into a clear, personalized schedule. Upload an Excel routine (.xlsx, .xls, .csv) or paste a Google Drive link, select your courses, and generate your schedule with one click. Export your exams as PDF or PNG, print your schedule, or sync them with Google Calendar.
+<h1 align="center">ExamMate</h1>
 
-## Credit
+<p align="center">
+  Turn your university exam routine into a clear, personal timetable.
+</p>
 
-The project structure was created based on the Python script provided by **Tanjim Abubokor**. Special credit to him for sharing the script that guided the project architecture.
+<p align="center">
+  <a href="https://exammate.triizync.com/">Open ExamMate</a>
+  · <a href="LICENSE">License</a>
+  · <a href="https://exammate.triizync.com/terms">Terms</a>
+</p>
 
-## Technologies
+<p align="center">
+  Upload an Excel routine or import a Google Drive file, choose your courses, then export or sync your exam schedule.
+</p>
 
-- **Frontend:** Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS, DaisyUI
-- **Authentication & Database:** Better Auth (Google OAuth 2.0 with Calendar & Drive scopes), MongoDB
-- **File Parsing:** SheetJS (`xlsx`)
-- **Export & Rendering:** jsPDF, jspdf-autotable (PDF), HTML5 Canvas API (custom high-res PNG renderer)
-- **Integrations:** Google Calendar API, Google Drive API v3
+<p align="center">
+  With appreciation to
+  <a href="https://github.com/tanjim750">Tanjim Abubokor</a>
+  for sharing the original Python exam-routine script that inspired ExamMate’s early project structure.
+</p>
 
-## Key Features
+---
 
-1. **Excel Routine Upload & Management**
-   - Import **XLSX**, **XLS**, **XLSM**, and **CSV** spreadsheets with intelligent in-memory parsing.
-   - Dedicated **Remove file** button allows quick clearing of uploaded files.
+## Features
 
-2. **Google Drive Link Import & Auto-Scanning**
-   - Paste a Google Drive or Google Sheets file link directly into Option 2.
-   - **Campus-Restricted Link Support**: For Southeast University (`@seu.edu.bd`) files that require login, clicking **Generate** triggers seamless Google Sign-In. The backend securely scans and reads the spreadsheet in the background via read-only Google Drive API (`drive.readonly`) and immediately builds your routine table.
+- **Routine import:** Parse `.xlsx`, `.xls`, `.xlsm`, and `.csv` files in the browser, or import a Google Drive/Sheets link.
+- **Course matching:** Match course codes without case sensitivity and select the sections you take.
+- **Schedule persistence:** Keep a generated routine in the same browser for up to 15 days. Clear it earlier with **Clear My Data**.
+- **Exports:** Download a PDF or PNG, or print a clean schedule.
+- **Google Calendar:** Sync exams to your primary calendar with an email reminder one day before and popup reminders 12 hours and one hour before the exam, when those reminder times are still in the future at sync time.
+- **Optional Google sign-in:** Sign in only when using Google Drive access or Calendar sync.
 
-3. **Intelligent Course Filtering**
-   - Filter and match course codes case-insensitively, supporting specific sections (e.g. `CSE181.5`).
-   - Clean, removable course chips with keyboard and comma-separated entry.
+## Built with
 
-4. **15-Day Local Schedule Persistence**
-   - Your generated routine table remains saved on your device for **15 days**, so returning to the app immediately displays your schedule.
-   - When closing and reopening the browser tab, the upload routine fields (file dropzone, Drive link box, course draft) reset cleanly to blank, leaving your generated table intact.
+- Next.js 15, React 19, TypeScript, Tailwind CSS, and DaisyUI
+- Better Auth and MongoDB
+- Google Drive API and Google Calendar API
+- SheetJS, jsPDF, and HTML Canvas
 
-5. **Export & Print**
-   - High-resolution **PNG image export** rendered with custom HTML5 Canvas styling and watermark.
-   - Vector **PDF document export** with formatted tables.
-   - Native browser **Print** stylesheet.
 
-6. **Google Calendar Synchronization**
-   - One-click sync to your primary Google Calendar.
-   - Automatically schedules **24-hour advance popup reminders** before each examination.
+
+## Data and privacy
+
+- Uploaded spreadsheet files are parsed in browser memory; the original upload is not stored as a server-side routine file.
+- Generated routines are saved in the browser's local storage for up to 15 days and can be removed with **Clear My Data**.
+- Google Drive access is used to read the file the user requests. Calendar access is used to create and update the user's exam events.
+- Google sign-in is optional for local spreadsheet parsing and schedule generation.
+
+See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](https://exammate.triizync.com/terms) for more information.
+
+## License
+
+ExamMate's original project materials are proprietary and reserved by their respective rights holders. This repository does not grant permission to copy, modify, redistribute, or commercially use those materials. Third-party packages and the original routine script credited above remain subject to their own owners' rights and license terms.
+
+Read the full [ExamMate License](LICENSE) or visit the [License page](https://exammate.triizync.com/license). For licensing questions, contact [exammate.support@gmail.com](mailto:exammate.support@gmail.com).
