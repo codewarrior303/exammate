@@ -9,9 +9,8 @@
 </p>
 
 <p align="center">
-  <a href="https://exammate.triizync.com/">Open ExamMate</a>
+  <a href="https://exammate.triizync.com/">ExamMate</a>
   · <a href="LICENSE">License</a>
-  · <a href="https://exammate.triizync.com/terms">Terms</a>
 </p>
 
 <p align="center">
