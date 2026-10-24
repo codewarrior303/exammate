@@ -5,7 +5,7 @@
 <h1 align="center">ExamMate</h1>
 
 <p align="center">
-  Turn your university exam routine into a clear, personal timetable.
+  Turn your university exam routine into a clear, personalized schedule.
 </p>
 
 <p align="center">
