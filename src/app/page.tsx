@@ -4556,7 +4556,7 @@ export default function Home() {
           {/* Main Footer Row */}
           <div className="flex flex-col lg:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center lg:text-left">
             {/* Left: ExamMate logo (using icon.svg) and short description */}
-            <div className="flex flex-col items-center justify-center gap-2 lg:flex-row lg:gap-x-3 lg:gap-y-0 lg:justify-start">
+            <div className="flex items-center justify-center gap-2.5 lg:justify-start">
               <div className="flex items-center gap-2.5">
                 <img
                   src="/exammate-logo.svg"
@@ -4569,21 +4569,43 @@ export default function Home() {
                   Exam<span className="text-neon-mint">Mate</span>
                 </span>
               </div>
-              <span className="hidden text-teal-500/50 lg:inline" aria-hidden="true">·</span>
-              <a
-                href="https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-xs text-[#94A3B8] transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1118]"
-                aria-label="Email ExamMate support"
-              >
-                <Mail className="h-3.5 w-3.5 text-teal-400" aria-hidden="true" />
-                exammate.support@gmail.com
-              </a>
             </div>
 
-            {/* Right: Policy links */}
+            {/* Right: Policy and support links */}
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#94A3B8] lg:justify-end">
+              <span className="group/contact relative inline-flex">
+                <a
+                  href="https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-describedby="footer-support-tooltip"
+                  aria-label="Contact ExamMate support"
+                  onClick={(event) => {
+                    const isTouchDevice =
+                      navigator.maxTouchPoints > 0 &&
+                      window.matchMedia("(pointer: coarse)").matches;
+                    if (!isTouchDevice) return;
+                    event.preventDefault();
+                    window.location.href =
+                      "mailto:exammate.support@gmail.com?subject=ExamMate%20Support";
+                  }}
+                  className="inline-flex items-center gap-1.5 text-[#94A3B8] transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1118]"
+                >
+                  <Mail className="h-3.5 w-3.5 text-teal-400" aria-hidden="true" />
+                  Contact
+                </a>
+                <span
+                  id="footer-support-tooltip"
+                  role="tooltip"
+                  className="pointer-events-auto invisible absolute bottom-[calc(100%+0.65rem)] left-1/2 z-50 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] backdrop-blur-xl transition-all duration-200 group-hover/contact:visible group-hover/contact:translate-y-0 group-hover/contact:opacity-100 group-focus-within/contact:visible group-focus-within/contact:translate-y-0 group-focus-within/contact:opacity-100"
+                >
+                  <span className="flex items-center gap-1.5 whitespace-nowrap">
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400 shadow-[0_0_6px_rgba(94,234,212,0.8)]" aria-hidden="true" />
+                    <span>exammate.support@gmail.com</span>
+                  </span>
+                  <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-teal-400/35 bg-[#0A1822]" aria-hidden="true" />
+                </span>
+              </span>
               <Link
                 href="/privacy"
                 className="hover:text-teal-300 transition-colors"
