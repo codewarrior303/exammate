@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://exammate.triizync.com/">ExamMate</a>
-  · <a href="https://github.com/codewarrior303/exammate?tab=License-1-ov-file" target="_blank">License</a>
+  · <a href="LICENSE">License</a>
 </p>
 
 <p align="center">
@@ -58,4 +58,4 @@ See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](http
 
 ExamMate's original project materials are proprietary and reserved by their respective rights holders. This repository does not grant permission to copy, modify, redistribute, or commercially use those materials. Third-party packages and the original routine script credited above remain subject to their own owners' rights and license terms.
 
-Read the full <a href="https://github.com/codewarrior303/exammate?tab=License-1-ov-file" target="_blank">ExamMate License</a>. For licensing questions, contact us at <a href="mailto:exammate.support@gmail.com">exammate.support@gmail.com</a>.
+Read the full [ExamMate License](LICENSE). For licensing questions, contact us at <a href="mailto:exammate.support@gmail.com">exammate.support@gmail.com</a>.
