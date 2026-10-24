@@ -249,6 +249,7 @@ Time: ${examTime}<br><br>
 💡 <strong>Pro Tip:</strong> Please try to reach your designated exam venue at least 15–20 minutes early to avoid any last-minute rush.<br><br>
 <strong>Wishing you the best of luck with your exam!</strong><br>
 🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`;
+      const requestedReminders = getUpcomingReminders(start, Date.now());
       const event = {
         id: eventId(exam.id),
         summary: `Reminder from ExamMate: ${title}`,
@@ -259,10 +260,10 @@ Time: ${examTime}<br><br>
           useDefault: false,
           // Google Calendar cannot send reminders for trigger times already past
           // when the user syncs; only keep reminder times that are still ahead.
-          overrides: getUpcomingReminders(start, Date.now()),
+          overrides: requestedReminders,
         },
       };
-      const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
+      const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events?fields=id,reminders";
       const requestOptions: RequestInit = {
         headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(event),
@@ -270,7 +271,10 @@ Time: ${examTime}<br><br>
       };
       let response = await fetch(calendarUrl, { ...requestOptions, method: "POST" });
       if (response.status === 409) {
-        response = await fetch(`${calendarUrl}/${event.id}`, { ...requestOptions, method: "PATCH" });
+        response = await fetch(
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event.id}?fields=id,reminders`,
+          { ...requestOptions, method: "PATCH" }
+        );
       }
       if (!response.ok) {
         const details = await response.json().catch(() => ({})) as { error?: { message?: string; status?: string } };
@@ -286,6 +290,25 @@ Time: ${examTime}<br><br>
           }, { status: 403 });
         }
         return NextResponse.json({ error: "Could not save calendar event. Please retry." }, { status: 502 });
+      }
+      const savedEvent = await response.json().catch(() => null) as {
+        reminders?: { overrides?: Array<{ method?: string; minutes?: number }> };
+      } | null;
+      const actualReminders = (savedEvent?.reminders?.overrides ?? [])
+        .map(({ method, minutes }) => `${method}:${minutes}`)
+        .sort();
+      const expectedReminders = requestedReminders
+        .map(({ method, minutes }) => `${method}:${minutes}`)
+        .sort();
+      if (
+        !savedEvent ||
+        actualReminders.length !== expectedReminders.length ||
+        actualReminders.some((reminder, index) => reminder !== expectedReminders[index])
+      ) {
+        return NextResponse.json(
+          { error: "Calendar saved the event but did not confirm all requested reminders. Please sync again." },
+          { status: 502 }
+        );
       }
       synced += 1;
     }
