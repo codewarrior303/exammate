@@ -274,6 +274,7 @@ Time: ${examTime}<br><br>
         id: eventId(exam.id),
         summary: `Reminder from ExamMate: ${title}`,
         description,
+        colorId: "2",
         start: { dateTime: start, timeZone: "Asia/Dhaka" },
         end: { dateTime: end, timeZone: "Asia/Dhaka" },
         reminders: {
