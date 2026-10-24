@@ -822,7 +822,11 @@ export default function Home() {
         `Routine restored (valid until ${formatDate(parsed.expiresAt.slice(0, 10))})`,
       );
     } catch {
-      window.localStorage.removeItem(ROUTINE_STORAGE_KEY);
+      try {
+        window.localStorage.removeItem(ROUTINE_STORAGE_KEY);
+      } catch {
+        setError("Browser storage is unavailable. Enable site storage to restore your saved routine.");
+      }
     } finally {
       setIsHydrated(true);
     }
@@ -1154,21 +1158,54 @@ export default function Home() {
     if (isSampleRoutine) {
       return;
     }
+    const sortedExams = sortExams(exams);
     const savedAt = new Date();
-    const expiresAt = new Date(savedAt.getTime() + 15 * 24 * 60 * 60 * 1000);
+    let expiresAt = new Date(savedAt.getTime() + 15 * 24 * 60 * 60 * 1000);
+
+    // Restoring a saved table must not silently reset its original expiry date.
+    try {
+      const previous = window.localStorage.getItem(ROUTINE_STORAGE_KEY);
+      if (previous) {
+        const previousPayload = JSON.parse(previous) as Partial<{
+          exams: ParsedExam[];
+          expiresAt: string;
+        }>;
+        const previousExpiry = new Date(previousPayload.expiresAt ?? "");
+        if (
+          Array.isArray(previousPayload.exams) &&
+          JSON.stringify(sortExams(previousPayload.exams)) === JSON.stringify(sortedExams) &&
+          Number.isFinite(previousExpiry.getTime()) &&
+          previousExpiry.getTime() > Date.now()
+        ) {
+          expiresAt = previousExpiry;
+        }
+      }
+    } catch {
+      // A fresh valid routine will replace an unreadable previous entry.
+    }
+
     const payload = {
       version: 1,
       savedAt: savedAt.toISOString(),
       expiresAt: expiresAt.toISOString(),
-      exams: sortExams(exams),
+      exams: sortedExams,
     };
 
     try {
-      window.localStorage.setItem(ROUTINE_STORAGE_KEY, JSON.stringify(payload));
+      const serialized = JSON.stringify(payload);
+      window.localStorage.setItem(ROUTINE_STORAGE_KEY, serialized);
+      if (window.localStorage.getItem(ROUTINE_STORAGE_KEY) !== serialized) {
+        throw new Error("Storage verification failed");
+      }
     } catch {
-      // Storage unavailable in private browsing
+      setError("Your table is ready, but this browser could not save it. Check that site storage is enabled.");
     }
   }
+
+  useEffect(() => {
+    if (!isHydrated || isSampleRoutine || generatedExams.length === 0) return;
+    persistRoutine(generatedExams);
+  }, [generatedExams, isHydrated, isSampleRoutine]);
 
   async function handleFileUpload(file: File) {
     if (isRealRoutineGenerated) {
