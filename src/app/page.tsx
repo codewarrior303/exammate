@@ -4529,20 +4529,19 @@ export default function Home() {
             {/* Accordion-style vertical list of questions */}
             <div className="flex flex-col gap-3">
               {faqItems.map((item) => (
-                <details
-                  key={item.question}
-                  className="group rounded-2xl glass-card border border-teal-500/20 overflow-hidden transition-all duration-300 ease-out hover:-translate-y-1 hover:border-teal-400/70 hover:bg-[#0c1f2b]/80 hover:shadow-[0_16px_36px_rgba(0,0,0,0.55),0_0_20px_rgba(94,234,212,0.16)] open:border-teal-400/60 open:bg-[#0c1f2a]/80 open:shadow-[0_14px_36px_rgba(0,0,0,0.55),0_0_18px_rgba(94,234,212,0.14)]"
-                >
-                  <summary className="flex items-center justify-between gap-4 p-4 sm:p-5 cursor-pointer text-sm font-medium text-white hover:text-teal-200 select-none transition-colors duration-150">
-                    <span className="font-medium text-white group-hover:text-teal-100 transition-colors duration-200">
-                      {item.question}
-                    </span>
-                    <ChevronDown className="w-5 h-5 text-teal-400/80 group-hover:text-teal-200 transition-all duration-300 group-open:rotate-180 shrink-0" />
-                  </summary>
-                  <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-xs sm:text-[13px] text-slate-300/90 leading-relaxed border-t border-teal-500/15 pt-3.5">
-                    {item.answer}
-                  </div>
-                </details>
+                <div key={item.question} className="group/faq relative rounded-2xl">
+                  <details className="group relative z-0 rounded-2xl glass-card border border-teal-500/20 overflow-hidden transition-all duration-300 ease-out group-hover/faq:-translate-y-1 group-hover/faq:z-10 group-hover/faq:border-teal-400/70 group-hover/faq:bg-[#0c1f2b]/80 group-hover/faq:shadow-[0_16px_36px_rgba(0,0,0,0.55),0_0_20px_rgba(94,234,212,0.16)] open:border-teal-400/60 open:bg-[#0c1f2a]/80 open:shadow-[0_14px_36px_rgba(0,0,0,0.55),0_0_18px_rgba(94,234,212,0.14)] motion-reduce:transition-none">
+                    <summary className="flex items-center justify-between gap-4 p-4 sm:p-5 cursor-pointer text-sm font-medium text-white group-hover/faq:text-teal-200 select-none transition-colors duration-150">
+                      <span className="font-medium text-white group-hover/faq:text-teal-100 transition-colors duration-200">
+                        {item.question}
+                      </span>
+                      <ChevronDown className="w-5 h-5 text-teal-400/80 group-hover/faq:text-teal-200 transition-all duration-300 group-open:rotate-180 shrink-0" />
+                    </summary>
+                    <div className="px-4 pb-4 sm:px-5 sm:pb-5 text-xs sm:text-[13px] text-slate-300/90 leading-relaxed border-t border-teal-500/15 pt-3.5">
+                      {item.answer}
+                    </div>
+                  </details>
+                </div>
               ))}
             </div>
           </LazySection>
