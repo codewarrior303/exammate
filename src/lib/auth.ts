@@ -94,14 +94,12 @@ function resolveBaseURL(): string {
 
 const baseURL = resolveBaseURL();
 const productionSecret = process.env.BETTER_AUTH_SECRET ?? "";
-if (isProduction) {
-  if (productionSecret.length < 32 && !process.env.VERCEL) {
-    throw new Error("Set BETTER_AUTH_SECRET to at least 32 characters in the Vercel environment.");
-  }
+if (isProduction && productionSecret.length < 32) {
+  throw new Error("Set BETTER_AUTH_SECRET to a private random value of at least 32 characters in production.");
 }
-const secret = process.env.BETTER_AUTH_SECRET || localSecret || "0123456789abcdef0123456789abcdef";
+const secret = isProduction ? productionSecret : productionSecret || localSecret;
 const databaseUri = process.env.DB_URI;
-if (!databaseUri && !process.env.VERCEL) {
+if (!databaseUri) {
   throw new Error("Set DB_URI to your MongoDB connection string.");
 }
 
@@ -144,7 +142,6 @@ export const auth = betterAuth({
         process.env.VERCEL_PROJECT_PRODUCTION_URL
           ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
           : "",
-        process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : "",
       ].filter((origin): origin is string => Boolean(origin))
     : [
         process.env.BETTER_AUTH_URL,

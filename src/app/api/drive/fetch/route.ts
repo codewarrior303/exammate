@@ -1,11 +1,49 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { isTrustedMutationRequest, getClientIp, checkRateLimit } from "@/lib/api-security";
+import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export const runtime = "nodejs";
 
 const MAX_BYTES = 15 * 1024 * 1024;
+const MAX_REQUEST_BYTES = 2 * 1024;
+const UPSTREAM_TIMEOUT_MS = 15_000;
+
+async function readBoundedBody(
+  response: Pick<Response, "headers" | "body">,
+  limit = MAX_BYTES
+): Promise<Uint8Array> {
+  const declaredLength = Number(response.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > limit) {
+    await response.body?.cancel();
+    throw new Error("File exceeds the allowed size.");
+  }
+  if (!response.body) return new Uint8Array();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > limit) {
+        await reader.cancel();
+        throw new Error("File exceeds the allowed size.");
+      }
+      chunks.push(value);
+    }
+  } finally {
+    reader.releaseLock();
+  }
+  const result = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    result.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return result;
+}
 
 function isSafeGoogleUrl(urlStr: string): boolean {
   try {
@@ -16,9 +54,8 @@ function isSafeGoogleUrl(urlStr: string): boolean {
         host === "docs.google.com" ||
         host === "sheets.google.com" ||
         host === "drive.usercontent.google.com" ||
-        host.endsWith(".google.com") ||
-        host.endsWith(".googleusercontent.com")) &&
-      (u.protocol === "https:" || u.protocol === "http:")
+        host === "googleusercontent.com") &&
+      u.protocol === "https:"
     );
   } catch {
     return false;
@@ -168,7 +205,7 @@ function extractHtmlError(html: string, hadLoginRedirect?: boolean): string {
 
 async function fetchWithCookieJar(
   initialUrl: string,
-  cookieJar: Record<string, string>,
+  cookieJar: Record<string, Record<string, string>>,
   maxRedirects = 5
 ): Promise<{ response: Response; finalUrl: string; hitLoginRedirect?: boolean }> {
   let currentUrl = initialUrl;
@@ -178,13 +215,16 @@ async function fetchWithCookieJar(
       throw new Error("Invalid or untrusted download URL target.");
     }
 
-    const cookieHeader = Object.entries(cookieJar)
+    const currentHost = new URL(currentUrl).hostname.toLowerCase();
+    const hostCookies = cookieJar[currentHost] ?? {};
+    const cookieHeader = Object.entries(hostCookies)
       .map(([k, v]) => `${k}=${v}`)
       .join("; ");
 
     const res = await fetch(currentUrl, {
       method: "GET",
       redirect: "manual",
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       headers: {
         ...COMMON_HEADERS,
         ...(cookieHeader ? { Cookie: cookieHeader } : {}),
@@ -205,16 +245,18 @@ async function fetchWithCookieJar(
           if (eqIdx > 0) {
             const key = firstPart.slice(0, eqIdx).trim();
             const val = firstPart.slice(eqIdx + 1).trim();
-            cookieJar[key] = val;
+            hostCookies[key] = val;
           }
         }
       }
     }
+    cookieJar[currentHost] = hostCookies;
 
     if ([301, 302, 303, 307, 308].includes(res.status)) {
       const location = res.headers.get("location");
       if (!location) return { response: res, finalUrl: currentUrl };
       const nextUrl = new URL(location, currentUrl).toString();
+      await res.body?.cancel();
       if (!isSafeGoogleUrl(nextUrl)) {
         throw new Error("Redirected to an untrusted domain.");
       }
@@ -283,14 +325,16 @@ function extractDownloadLinkFromHtml(html: string, baseUrl: string): string | nu
 
 function extractConfirmToken(
   html: string,
-  cookieJar: Record<string, string>,
+  cookieJar: Record<string, Record<string, string>>,
   fileId: string
 ): string | null {
-  if (cookieJar[`download_warning_${fileId}`]) {
-    return cookieJar[`download_warning_${fileId}`];
-  }
-  if (cookieJar["download_warning"]) {
-    return cookieJar["download_warning"];
+  for (const hostCookies of Object.values(cookieJar)) {
+    if (hostCookies[`download_warning_${fileId}`]) {
+      return hostCookies[`download_warning_${fileId}`];
+    }
+    if (hostCookies.download_warning) {
+      return hostCookies.download_warning;
+    }
   }
   const match = html.match(/confirm=([0-9A-Za-z_-]{4,})/i);
   return match ? match[1] : null;
@@ -315,7 +359,7 @@ async function downloadDriveFile(
       try {
         const { response } = await fetchWithCookieJar(url, {});
         if (response.ok) {
-          const buf = new Uint8Array(await response.arrayBuffer());
+          const buf = await readBoundedBody(response);
           if (!isHtmlPayload(buf) && buf.byteLength > 0) {
             return { buffer: buf, ext: sniffExtension(buf) };
           }
@@ -343,7 +387,7 @@ async function downloadDriveFile(
           continue;
         }
         if (response.ok) {
-          const buf = new Uint8Array(await response.arrayBuffer());
+          const buf = await readBoundedBody(response);
           if (!isHtmlPayload(buf) && buf.byteLength > 0) {
             return { buffer: buf, ext: sniffExtension(buf) };
           }
@@ -362,7 +406,7 @@ async function downloadDriveFile(
   }
 
   // 3. Google Drive File downloads (uploaded .xlsx, .xls, .csv, or general files)
-  const cookieJar: Record<string, string> = {};
+  const cookieJar: Record<string, Record<string, string>> = {};
   let lastHtml = "";
   let hadLoginRedirect = false;
 
@@ -372,19 +416,15 @@ async function downloadDriveFile(
     `https://drive.usercontent.google.com/download?id=${target.id}&export=download&authuser=0&confirm=t`,
   ];
 
-  console.log(`[Drive API] Processing target: ID=${target.id}, isSpreadsheet=${Boolean(target.isSpreadsheet)}`);
-
   for (const url of fileAttempts) {
     try {
-      console.log(`[Drive API] Fetching: ${url}`);
       const { response, finalUrl, hitLoginRedirect } = await fetchWithCookieJar(url, cookieJar);
-      console.log(`[Drive API] Result: ${url} -> status=${response.status}, hitLoginRedirect=${Boolean(hitLoginRedirect)}`);
       if (hitLoginRedirect) {
         hadLoginRedirect = true;
         continue;
       }
 
-      const buf = new Uint8Array(await response.arrayBuffer());
+      const buf = await readBoundedBody(response);
       if (response.ok && !isHtmlPayload(buf) && buf.byteLength > 0) {
         return { buffer: buf, ext: sniffExtension(buf) };
       }
@@ -397,7 +437,7 @@ async function downloadDriveFile(
         const extractedUrl = extractDownloadLinkFromHtml(html, finalUrl);
         if (extractedUrl) {
           const confirmed = await fetchWithCookieJar(extractedUrl, cookieJar);
-          const confBuf = new Uint8Array(await confirmed.response.arrayBuffer());
+          const confBuf = await readBoundedBody(confirmed.response);
           if (confirmed.response.ok && !isHtmlPayload(confBuf) && confBuf.byteLength > 0) {
             return { buffer: confBuf, ext: sniffExtension(confBuf) };
           }
@@ -408,7 +448,7 @@ async function downloadDriveFile(
         if (token) {
           const retryWithToken = `https://drive.google.com/uc?export=download&id=${target.id}&confirm=${token}`;
           const tokenRes = await fetchWithCookieJar(retryWithToken, cookieJar);
-          const tokenBuf = new Uint8Array(await tokenRes.response.arrayBuffer());
+          const tokenBuf = await readBoundedBody(tokenRes.response);
           if (tokenRes.response.ok && !isHtmlPayload(tokenBuf) && tokenBuf.byteLength > 0) {
             return { buffer: tokenBuf, ext: sniffExtension(tokenBuf) };
           }
@@ -426,14 +466,14 @@ async function downloadDriveFile(
     if (hitLoginRedirect) {
       hadLoginRedirect = true;
     } else {
-      const buf = new Uint8Array(await response.arrayBuffer());
+      const buf = await readBoundedBody(response);
       const html = new TextDecoder().decode(buf);
       if (html) {
         lastHtml = html;
         const extractedUrl = extractDownloadLinkFromHtml(html, finalUrl);
         if (extractedUrl) {
           const dlRes = await fetchWithCookieJar(extractedUrl, cookieJar);
-          const dlBuf = new Uint8Array(await dlRes.response.arrayBuffer());
+          const dlBuf = await readBoundedBody(dlRes.response);
           if (dlRes.response.ok && !isHtmlPayload(dlBuf) && dlBuf.byteLength > 0) {
             return { buffer: dlBuf, ext: sniffExtension(dlBuf) };
           }
@@ -450,7 +490,7 @@ async function downloadDriveFile(
       const gvizUrl = `https://docs.google.com/spreadsheets/d/${target.id}/gviz/tq?tqx=out:csv`;
       const { response, hitLoginRedirect } = await fetchWithCookieJar(gvizUrl, {});
       if (!hitLoginRedirect && response.ok) {
-        const buf = new Uint8Array(await response.arrayBuffer());
+        const buf = await readBoundedBody(response);
         if (!isHtmlPayload(buf) && buf.byteLength > 0) {
           return { buffer: buf, ext: "csv" };
         }
@@ -473,7 +513,6 @@ async function downloadViaGoogleDriveApi(
 
   // 1. Direct binary download for uploaded files (.xlsx, .xls, .csv)
   try {
-    console.log(`[Drive API] Calling Google Drive API v3 (direct media) for fileId=${fileId}`);
     const res = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
       {
@@ -481,18 +520,16 @@ async function downloadViaGoogleDriveApi(
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       }
     );
-    console.log(`[Drive API] Direct media response status: ${res.status}`);
     if (res.ok) {
-      const buf = new Uint8Array(await res.arrayBuffer());
+      const buf = await readBoundedBody(res);
       if (buf.byteLength > 0 && !isHtmlPayload(buf)) {
-        console.log(`[Drive API] Successfully downloaded ${buf.byteLength} bytes via Drive API!`);
         return { buffer: buf, ext: sniffExtension(buf) };
       }
     } else {
-      const errText = await res.text();
-      console.log(`[Drive API] Direct media non-ok body: ${errText.slice(0, 300)}`);
+      const errText = new TextDecoder().decode(await readBoundedBody(res, 16 * 1024));
       try {
         const parsed = JSON.parse(errText) as { error?: { message?: string; status?: string } };
         if (parsed.error?.message) {
@@ -510,12 +547,11 @@ async function downloadViaGoogleDriveApi(
       }
     }
   } catch (err) {
-    console.log("[Drive API] Direct media fetch error:", err);
+    // Use the public fallback without logging user file IDs or provider responses.
   }
 
   // 2. Export endpoint for native Google Sheets
   try {
-    console.log(`[Drive API] Calling Google Drive API v3 (export xlsx) for fileId=${fileId}`);
     const res = await fetch(
       `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet&supportsAllDrives=true`,
       {
@@ -523,21 +559,19 @@ async function downloadViaGoogleDriveApi(
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
+        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
       }
     );
-    console.log(`[Drive API] Export response status: ${res.status}`);
     if (res.ok) {
-      const buf = new Uint8Array(await res.arrayBuffer());
+      const buf = await readBoundedBody(res);
       if (buf.byteLength > 0 && !isHtmlPayload(buf)) {
-        console.log(`[Drive API] Successfully exported ${buf.byteLength} bytes via Drive API!`);
         return { buffer: buf, ext: "xlsx" };
       }
     } else {
-      const errText = await res.text();
-      console.log(`[Drive API] Export non-ok body: ${errText.slice(0, 300)}`);
+      await res.body?.cancel();
     }
   } catch (err) {
-    console.log("[Drive API] Export fetch error:", err);
+    // Preserve privacy: do not log user file IDs, tokens, or upstream details.
   }
 
   if (capturedError) {
@@ -552,8 +586,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
   }
 
+  if (!request.headers.get("content-type")?.toLowerCase().startsWith("application/json")) {
+    return NextResponse.json({ error: "Expected a JSON request." }, { status: 415 });
+  }
+  if (!request.body) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  const declaredLength = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declaredLength) && declaredLength > MAX_REQUEST_BYTES) {
+    return NextResponse.json({ error: "Request is too large." }, { status: 413 });
+  }
+
   const clientIp = getClientIp(request);
-  const rateLimit = checkRateLimit(`drive_fetch:${clientIp}`, 20, 60 * 1000);
+  let rateLimit;
+  try {
+    rateLimit = await checkPersistentRateLimit(`drive_fetch:${clientIp}`, 20, 60 * 1000);
+  } catch {
+    return NextResponse.json({ error: "Service temporarily unavailable." }, { status: 503 });
+  }
   if (!rateLimit.allowed) {
     return NextResponse.json(
       { error: "Too many requests. Please wait a moment." },
@@ -563,9 +611,13 @@ export async function POST(request: Request) {
 
   let link = "";
   try {
-    const body = (await request.json()) as { url?: unknown };
+    const bodyText = new TextDecoder().decode(await readBoundedBody(request, MAX_REQUEST_BYTES));
+    const body = JSON.parse(bodyText) as { url?: unknown };
     link = typeof body.url === "string" ? body.url.trim() : "";
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === "File exceeds the allowed size.") {
+      return NextResponse.json({ error: "Request is too large." }, { status: 413 });
+    }
     return NextResponse.json({ error: "Invalid request." }, { status: 400 });
   }
 
@@ -573,7 +625,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Please enter a Google Drive link." }, { status: 400 });
   }
 
-  console.log(`[Drive API] Received link from client: "${link}"`);
   const target = parseDriveLink(link);
   if (!target) {
     return NextResponse.json(
@@ -603,13 +654,12 @@ export async function POST(request: Request) {
       }
     }
   } catch (authErr) {
-    console.log("[Drive API] Session check error:", authErr);
+    // Public shared links remain importable when optional OAuth is unavailable.
   }
 
   // 2. If Google access token is available, attempt download via official Google Drive API
   let driveApiError: string | null = null;
   if (userGoogleToken) {
-    console.log(`[Drive API] Attempting authenticated download using user Google token for ${target.id}`);
     const apiResult = await downloadViaGoogleDriveApi(target.id, userGoogleToken);
     if (apiResult && "buffer" in apiResult && apiResult.buffer.byteLength > 0 && apiResult.buffer.byteLength <= MAX_BYTES) {
       return new Response(apiResult.buffer as unknown as BodyInit, {
@@ -631,7 +681,6 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: driveApiError || result.error,
-          fileId: target.id,
           requiresGoogleAuth: !userGoogleToken,
         },
         { status: 422 }

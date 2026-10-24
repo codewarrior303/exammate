@@ -10,7 +10,6 @@ function getAllowedOrigins(): Set<string> {
         process.env.BETTER_AUTH_URL,
         process.env.FRONTEND_ORIGIN,
         process.env.VERCEL_PROJECT_PRODUCTION_URL,
-        process.env.VERCEL_URL,
       ]
     : [
         process.env.BETTER_AUTH_URL,
@@ -58,7 +57,7 @@ export function isTrustedMutationRequest(request: Request): boolean {
   return false;
 }
 
-/** Extract client IP address for logging and rate-limiting */
+/** Extract the platform-forwarded client IP for rate-limiting. */
 export function getClientIp(request: Request): string {
   const xForwardedFor = request.headers.get("x-forwarded-for");
   if (xForwardedFor) {

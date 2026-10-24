@@ -30,7 +30,7 @@ export default function PrivacyPage() {
             2. Google Drive Link Import
           </h2>
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-            When you provide a Google Drive or Google Sheets link, ExamMate fetches only the requested spreadsheet file to parse the examination schedule. If the file requires institutional access (@seu.edu.bd), connecting your Google account grants temporary, read-only permission (<code>drive.readonly</code>) strictly to download that specific file. We never read, modify, store, or share any other files in your Google Drive.
+            When you provide a Google Drive or Google Sheets link, ExamMate temporarily proxies only the requested spreadsheet through its server to parse the examination schedule; the server does not retain the file or link. A recently used link may be kept in your browser storage for convenience (see Local Storage & Data Retention). If the file requires institutional access (@seu.edu.bd), connecting your Google account grants read-only permission strictly to download the requested file. We never modify or share files in your Google Drive.
           </p>
         </section>
 
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
             3. Local Storage & Data Retention
           </h2>
           <p className="text-slate-300 text-xs sm:text-sm leading-relaxed">
-            To save you from re-uploading routines every time you visit, your generated exam table is saved exclusively in your device's local browser storage. This data expires automatically after <strong>15 days</strong>. You can permanently delete all stored schedules at any moment by clicking the <strong>“Clear My Data”</strong> button in the routine generator.
+            Your generated exam table and recently used Drive links may be saved in your device's local browser storage. The exam table expires automatically after <strong>15 days</strong>. Click <strong>“Clear My Data”</strong> to remove locally saved routine and Drive-link data.
           </p>
         </section>
 

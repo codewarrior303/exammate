@@ -7,6 +7,9 @@ import {
   normalizeRow,
 } from "@/lib/parsers/normalize";
 
+const MAX_SHEETS = 30;
+const MAX_ROWS_PER_SHEET = 2_000;
+
 function cellValue(row: unknown[], column: number | undefined): string {
   if (column === undefined) return "";
   const value = row[column];
@@ -19,7 +22,14 @@ export async function parseExcelFile(file: File): Promise<ParsedExam[]> {
     import("xlsx"),
     file.arrayBuffer(),
   ]);
-  const workbook = XLSX.read(arrayBuffer, { type: "array", cellDates: true });
+  const workbook = XLSX.read(arrayBuffer, {
+    type: "array",
+    cellDates: true,
+    sheetRows: MAX_ROWS_PER_SHEET,
+  });
+  if (workbook.SheetNames.length > MAX_SHEETS) {
+    throw new Error(`The workbook has too many sheets (maximum ${MAX_SHEETS}).`);
+  }
   const exams = new Map<string, ParsedExam>();
   let foundRoutineHeaders = false;
 

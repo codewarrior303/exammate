@@ -1175,6 +1175,11 @@ export default function Home() {
       setError("Routine table active. Click 'Clear My Data' to reset.");
       return;
     }
+    const maxUploadBytes = 15 * 1024 * 1024;
+    if (file.size > maxUploadBytes) {
+      setError("File exceeds the 15 MB upload limit.");
+      return;
+    }
     routineSourceRef.current = "excel";
     if (isSampleRoutine) {
       setIsSampleRoutine(false);
@@ -1728,6 +1733,7 @@ export default function Home() {
           window.localStorage.removeItem(ROUTINE_STORAGE_KEY);
           window.localStorage.removeItem("examMate:routine:v1");
           window.localStorage.removeItem("examMate:savedDriveLink");
+          window.localStorage.removeItem(RECENT_DRIVE_LINKS_KEY);
           window.sessionStorage.removeItem("examMate:routineSource");
           window.sessionStorage.removeItem("examMate:pendingDriveLink");
           window.sessionStorage.removeItem("examMate:pendingCourses");

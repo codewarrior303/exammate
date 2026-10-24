@@ -33,6 +33,17 @@ function formatExamTime(time: string): string {
   return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+function getUpcomingReminders(startDateTime: string, now = Date.now()) {
+  const startMs = Date.parse(startDateTime);
+  const candidates = [
+    { method: "email" as const, minutes: 24 * 60 },
+    { method: "popup" as const, minutes: 12 * 60 },
+    { method: "popup" as const, minutes: 60 },
+  ];
+
+  return candidates.filter(({ minutes }) => startMs - minutes * 60_000 > now);
+}
+
 function escapeCalendarText(value: string): string {
   return value.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
@@ -76,21 +87,33 @@ export async function GET() {
     const requestHeaders = await headers();
     const session = await auth.api.getSession({ headers: requestHeaders });
     if (!session) {
-      return NextResponse.json({ connected: false, hasCalendarScope: false });
+      return NextResponse.json(
+        { connected: false, hasCalendarScope: false },
+        { headers: { "Cache-Control": "private, no-store" } }
+      );
     }
     const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
     const googleAccount = accounts?.find((account) => account.providerId === "google");
     if (!googleAccount) {
-      return NextResponse.json({ connected: false, hasCalendarScope: false });
+      return NextResponse.json(
+        { connected: false, hasCalendarScope: false },
+        { headers: { "Cache-Control": "private, no-store" } }
+      );
     }
     const scopes = googleAccount.scopes ?? [];
     const hasCalendarScope = scopes.some((scope) =>
       scope === "https://www.googleapis.com/auth/calendar" ||
       scope === "https://www.googleapis.com/auth/calendar.events"
     );
-    return NextResponse.json({ connected: true, hasCalendarScope });
+    return NextResponse.json(
+      { connected: true, hasCalendarScope },
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   } catch {
-    return NextResponse.json({ connected: false, hasCalendarScope: false });
+    return NextResponse.json(
+      { connected: false, hasCalendarScope: false },
+      { headers: { "Cache-Control": "private, no-store" } }
+    );
   }
 }
 
@@ -234,10 +257,9 @@ Time: ${examTime}<br><br>
         end: { dateTime: end, timeZone: "Asia/Dhaka" },
         reminders: {
           useDefault: false,
-          overrides: [
-            { method: "email", minutes: 24 * 60 },
-            { method: "popup", minutes: 60 },
-          ],
+          // Google Calendar cannot send reminders for trigger times already past
+          // when the user syncs; only keep reminder times that are still ahead.
+          overrides: getUpcomingReminders(start, Date.now()),
         },
       };
       const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
