@@ -18,7 +18,7 @@
 </p>
 
 <p align="center">
-  With appreciation to
+  With special appreciation to our respected senior
   <a href="https://github.com/tanjim750">Tanjim Abubokor</a>
   for sharing the original Python exam-routine script that inspired ExamMate’s early project structure.
 </p>
@@ -58,4 +58,4 @@ See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](http
 
 ExamMate's original project materials are proprietary and reserved by their respective rights holders. This repository does not grant permission to copy, modify, redistribute, or commercially use those materials. Third-party packages and the original routine script credited above remain subject to their own owners' rights and license terms.
 
-Read the full [ExamMate License](LICENSE). For licensing questions, email [exammate.support@gmail.com](mailto:exammate.support@gmail.com).
+Read the full [ExamMate License](LICENSE). For licensing questions, contact us at [exammate.support@gmail.com](mailto:exammate.support@gmail.com).

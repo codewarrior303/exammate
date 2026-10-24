@@ -12,10 +12,12 @@ export default function LicensePage() {
   return (
     <PolicyPage title="ExamMate License">
       <p className="text-slate-200 text-sm leading-relaxed">
-        <strong>Copyright © 2026 Ahnaf Shahriar Abir. All rights reserved.</strong>
-        {" "}This license covers only original ExamMate materials owned by the
-        rights holder, including original application code, project
-        documentation, and visual design.
+        <strong>
+          Copyright © 2026 Ahnaf Shahriar Abir. All rights reserved.
+        </strong>{" "}
+        This license covers only original ExamMate materials owned by the rights
+        holder, including original application code, project documentation, and
+        visual design.
       </p>
 
       <div className="space-y-6 pt-2">
@@ -39,10 +41,26 @@ export default function LicensePage() {
           </h2>
           <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
             Third-party dependencies, assets, and contributions remain subject
-            to their own rights and license terms. The README credit to Tanjim
-            Abubokor acknowledges the original Python routine script shared as
-            project inspiration; it does not claim ownership of that script or
-            grant permission to reuse it.
+            to their own rights and license terms. With deep respect and sincere
+            appreciation, we extend our heartfelt recognition to our esteemed
+            senior{" "}
+            <strong>
+              <a
+                href="https://github.com/tanjim750"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="cursor-pointer text-teal-300 underline decoration-teal-400/35 underline-offset-2 transition-colors hover:text-teal-100 hover:decoration-teal-200 focus-visible:rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+                aria-label="Visit Tanjim Abubokor’s GitHub profile"
+              >
+                Tanjim Abubokor
+              </a>
+            </strong>{" "}
+            for sharing the foundational Python routine script that gracefully
+            inspired ExamMate's early project structure. This acknowledgment
+            purely celebrates his inspiring contribution as a gesture of
+            professional courtesy and respect; it does not imply ownership,
+            co-authorship, or permission to reuse the original work, with all
+            rights remaining fully with him.
           </p>
         </section>
 
