@@ -125,6 +125,9 @@ export const auth = betterAuth({
     updateAccountOnSignIn: true,
     storeAccountCookie: false,
     storeStateStrategy: "database",
+    accountLinking: {
+      allowUnlinkingAll: true,
+    },
   },
   advanced: {
     useSecureCookies: isProduction,

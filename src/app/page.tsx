@@ -1198,7 +1198,6 @@ export default function Home() {
         );
       }
       setAllExams(sortExams(parsed));
-      setMessage(`${parsed.length} exams loaded successfully.`);
     } catch (uploadError) {
       setError(
         uploadError instanceof Error
@@ -4556,9 +4555,9 @@ export default function Home() {
           minHeight="150px"
         >
           {/* Main Footer Row */}
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center sm:text-left">
+          <div className="flex flex-col lg:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center lg:text-left">
             {/* Left: ExamMate logo (using icon.svg) and short description */}
-            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 sm:justify-start">
+            <div className="flex flex-col items-center justify-center gap-2 lg:flex-row lg:gap-x-3 lg:gap-y-0 lg:justify-start">
               <div className="flex items-center gap-2.5">
                 <img
                   src="/exammate-logo.svg"
@@ -4571,7 +4570,7 @@ export default function Home() {
                   Exam<span className="text-neon-mint">Mate</span>
                 </span>
               </div>
-              <span className="hidden text-teal-500/50 sm:inline" aria-hidden="true">·</span>
+              <span className="hidden text-teal-500/50 lg:inline" aria-hidden="true">·</span>
               <a
                 href="https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support"
                 target="_blank"
@@ -4585,7 +4584,7 @@ export default function Home() {
             </div>
 
             {/* Right: Policy links */}
-            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#94A3B8] sm:justify-end">
+            <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#94A3B8] lg:justify-end">
               <Link
                 href="/privacy"
                 className="hover:text-teal-300 transition-colors"

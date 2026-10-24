@@ -28,11 +28,18 @@ export async function POST(request: Request) {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: new URLSearchParams({ token: token.accessToken }),
+            signal: AbortSignal.timeout(5_000),
           });
         }
       } catch {
-        // Even if token was already expired or revoked with Google, continue to disconnect locally
+        // Even if the token was expired or Google is unreachable, unlink locally.
       }
+
+      // Revoking Google's token alone leaves the Better Auth account connected.
+      await auth.api.unlinkAccount({
+        body: { accountId: googleAccount.id },
+        headers: requestHeaders,
+      });
     }
 
     return NextResponse.json({ disconnected: true });

@@ -213,26 +213,22 @@ export async function POST(request: Request) {
       const courseCode = escapeCalendarText(exam.courseCode.trim());
       const title = `${courseTitle} (${courseCode})`;
       const examTime = `${formatExamTime(exam.startTime)} - ${formatExamTime(exam.endTime)}`;
-      const description = `Hello,
-This is a scheduled automated reminder from ExamMate.
-
-📌 EXAM DETAILS:
-Course: ${title}
-Faculty: ${exam.faculty?.trim() ? escapeCalendarText(exam.faculty.trim()) : "Not listed in the routine"}
-Time: ${examTime}
-
-⚠️ CRITICAL CHECKLIST (Before entering the hall):
-. Student ID & Admit Card
-. Pens, Pencils & necessary stationeries
-. Calculator (If applicable)
-
-💡 Pro Tip: Please try to reach your designated exam venue at least 15-20 minutes early to avoid any last-minute rush.
-
-Wishing you the best of luck with your exam!
-🚀 Powered by ExamMate (exammate.triizync.com)`;
+      const description = `Hello,<br>
+This is a scheduled automated reminder from ExamMate.<br><br>
+📌 <strong>EXAM DETAILS:</strong><br>
+Course: ${title}<br>
+Faculty: ${exam.faculty?.trim() ? escapeCalendarText(exam.faculty.trim()) : "Not listed in the routine"}<br>
+Time: ${examTime}<br><br>
+⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong><br>
+• Student ID &amp; Admit Card<br>
+• Pens, Pencils &amp; necessary stationery<br>
+• Calculator (If applicable)<br><br>
+💡 <strong>Pro Tip:</strong> Please try to reach your designated exam venue at least 15–20 minutes early to avoid any last-minute rush.<br><br>
+<strong>Wishing you the best of luck with your exam!</strong><br>
+🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`;
       const event = {
         id: eventId(exam.id),
-        summary: `Reminder for ExamMate: ${title}`,
+        summary: `Reminder from ExamMate: ${title}`,
         description,
         start: { dateTime: start, timeZone: "Asia/Dhaka" },
         end: { dateTime: end, timeZone: "Asia/Dhaka" },
