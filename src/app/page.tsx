@@ -4633,12 +4633,6 @@ export default function Home() {
                 Privacy Policy
               </Link>
               <Link
-                href="/license"
-                className="hover:text-teal-300 transition-colors"
-              >
-                License
-              </Link>
-              <Link
                 href="/terms"
                 className="hover:text-teal-300 transition-colors"
               >
