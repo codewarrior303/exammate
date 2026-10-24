@@ -32,12 +32,13 @@
 - **Course matching:** Match course codes without case sensitivity and select the sections you take.
 - **Schedule persistence:** Keep a generated routine in the same browser for up to 15 days. Clear it earlier with **Clear My Data**.
 - **Exports:** Download a PDF or PNG, or print a clean schedule.
-- **Google Calendar:** Sync exams to your primary calendar with an email reminder one day before and popup reminders 12 hours and one hour before the exam, when those reminder times are still in the future at sync time.
-- **Optional Google sign-in:** Sign in only when using Google Drive access or Calendar sync.
+- **Google Drive import:** A Drive/Sheets link requires Google sign-in and read-only Drive access so ExamMate can fetch the routine file you linked. It does not need permission to edit or delete Drive files. Uploading an Excel file from your device does not require Drive access.
+- **Optional Google Calendar sync:** Calendar sync is an optional feature. You can generate and use your routine without adding events to Google Calendar. If you choose to sync, ExamMate adds your selected exam events to your primary calendar with reminders: email one day before and pop-ups 12 hours and one hour before, when those reminder times are still in the future at sync time.
+- **Optional Google sign-in:** You do not need an account for local spreadsheet upload or routine generation. Google sign-in is needed only for Google Drive import or if you choose Google Calendar features.
 
 ## Built with
 
-- Next.js 15, React 19, TypeScript, Tailwind CSS, and DaisyUI
+- Next.js, React, TypeScript, Tailwind CSS, and DaisyUI
 - Better Auth and MongoDB
 - Google Drive API and Google Calendar API
 - SheetJS, jsPDF, and HTML Canvas
@@ -48,7 +49,8 @@
 
 - Uploaded spreadsheet files are parsed in browser memory; the original upload is not stored as a server-side routine file.
 - Generated routines are saved in the browser's local storage for up to 15 days and can be removed with **Clear My Data**.
-- Google Drive access is used to read the file the user requests. Calendar access is used to create and update the user's exam events.
+- For a Drive link, ExamMate requests read-only Drive access to retrieve the specific routine file identified by the link; it does not need Drive edit or delete access. Local spreadsheet uploads are parsed in the browser and do not use Google Drive.
+- Google Calendar sync is optional. Calendar access is used only for the calendar feature, to create or update ExamMate exam events in the user's primary calendar.
 - Google sign-in is optional for local spreadsheet parsing and schedule generation.
 
 See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](https://exammate.triizync.com/terms) for more information.
