@@ -1962,46 +1962,21 @@ export default function Home() {
       setError("Generate your routine before printing PDF.");
       return;
     }
-    try {
-      const doc = await buildPdfDocument();
-      doc.autoPrint();
-      const pdfBlob = doc.output("blob");
-      const pdfUrl = URL.createObjectURL(pdfBlob);
+    const originalTitle = document.title;
+    let restored = false;
+    const restoreTitle = () => {
+      if (restored) return;
+      restored = true;
+      document.title = originalTitle;
+      window.removeEventListener("afterprint", restoreTitle);
+    };
 
-      // Open exact styled PDF in print preview window
-      const printWin = window.open(pdfUrl, "_blank");
-      if (printWin) {
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 60000);
-      } else {
-        // Fallback for popup blocker: use invisible iframe
-        const iframe = document.createElement("iframe");
-        iframe.style.position = "fixed";
-        iframe.style.right = "0";
-        iframe.style.bottom = "0";
-        iframe.style.width = "0";
-        iframe.style.height = "0";
-        iframe.style.border = "0";
-        iframe.src = pdfUrl;
-        document.body.appendChild(iframe);
-        iframe.onload = () => {
-          setTimeout(() => {
-            try {
-              iframe.contentWindow?.focus();
-              iframe.contentWindow?.print();
-            } catch {
-              window.print();
-            } finally {
-              setTimeout(() => {
-                iframe.remove();
-                URL.revokeObjectURL(pdfUrl);
-              }, 60000);
-            }
-          }, 250);
-        };
-      }
-    } catch {
-      window.print();
-    }
+    // Use the existing print stylesheet instead of a blob URL. Browsers use
+    // the page title as the suggested filename when saving the print as PDF.
+    document.title = "ExamMate-Schedule";
+    window.addEventListener("afterprint", restoreTitle, { once: true });
+    window.print();
+    window.setTimeout(restoreTitle, 60_000);
   }
 
   // Ctrl+P / Cmd+P shortcut: triggers printPdf if table is generated; blocks native print otherwise
