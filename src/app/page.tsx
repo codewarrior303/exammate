@@ -2838,7 +2838,7 @@ export default function Home() {
             </button>
             <div
               role="tooltip"
-              className={`pointer-events-none absolute right-0 top-[calc(100%+0.65rem)] z-50 w-max max-w-[min(20rem,calc(100vw-2rem))] translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-2 text-xs backdrop-blur-xl opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] transition-all duration-200 ${
+              className={`google-connect-tooltip pointer-events-none absolute right-0 top-[calc(100%+0.65rem)] z-50 w-max max-w-[min(20rem,calc(100vw-2rem))] translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-2 text-xs backdrop-blur-xl opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] transition-all duration-200 ${
                 googleLoading || googleDisconnecting
                   ? "!opacity-0 !invisible pointer-events-none"
                   : "group-hover/google:translate-y-0 group-hover/google:opacity-100 group-focus-within/google:translate-y-0 group-focus-within/google:opacity-100"
@@ -3067,7 +3067,7 @@ export default function Home() {
                         handleDrop(e);
                       }}
                       onContextMenu={(e) => e.preventDefault()}
-                      className={`group/drop relative flex flex-col items-center justify-center gap-2 p-5 rounded-xl border border-dashed text-center transition-all duration-200 ${
+                      className={`routine-upload-zone group/drop relative flex min-h-[9rem] w-full flex-col items-center justify-center gap-2 p-5 rounded-xl border border-dashed text-center transition-all duration-200 ${
                         isUploadDisabled
                           ? "opacity-35 cursor-not-allowed border-slate-700 bg-slate-950/40 pointer-events-none"
                           : isDragOver
@@ -3623,8 +3623,8 @@ export default function Home() {
                 </div>
 
                 {/* Glowing "Generate" button and "Clear My Data" ghost button */}
-                <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-4 border-t border-teal-500/15">
-                  <div className="flex flex-wrap items-center gap-2.5">
+                <div className="routine-actions mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-teal-500/15 pt-4">
+                  <div className="routine-action-buttons flex flex-nowrap items-center gap-3">
                     <div
                       className={`group/gen relative inline-flex ${isGenerateDisabled ? "cursor-not-allowed" : ""}`}
                     >
@@ -3633,7 +3633,7 @@ export default function Home() {
                         onClick={() => void handleGenerate()}
                         disabled={isGenerateDisabled}
                         aria-label="Generate personal exam table"
-                        className={`relative overflow-hidden inline-flex items-center justify-center rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        className={`relative overflow-hidden inline-flex items-center justify-center rounded-full text-xs font-bold uppercase tracking-wider transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)] max-[420px]:min-w-0 max-[420px]:px-4 ${
                           generating
                             ? "w-[5.5rem] sm:w-[6rem] px-0 py-2.5 bg-gradient-to-r from-[#5EEAD4] via-[#A7F3D0] to-[#5EEAD4] text-[#031A15] shadow-[0_0_35px_rgba(94,234,212,0.7)] ring-2 ring-teal-300 cursor-wait"
                             : "min-w-[130px] px-7 py-2.5 gap-2.5 btn-neon-primary disabled:opacity-40 disabled:pointer-events-none shadow-[0_0_20px_rgba(94,234,212,0.35)]"
@@ -3736,7 +3736,7 @@ export default function Home() {
                       {/* Custom Glassmorphic Tooltip */}
                       <div
                         role="tooltip"
-                        className="pointer-events-none absolute bottom-[calc(100%+0.65rem)] left-1/2 -translate-x-1/2 z-50 w-max max-w-[min(20rem,calc(100vw-2.5rem))] translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 backdrop-blur-xl px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] transition-all duration-200 group-hover/clear:translate-y-0 group-hover/clear:opacity-100 whitespace-nowrap"
+                        className="routine-clear-tooltip pointer-events-none absolute bottom-[calc(100%+0.65rem)] left-1/2 z-50 w-max max-w-[min(20rem,calc(100vw-2.5rem))] -translate-x-1/2 translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] backdrop-blur-xl transition-all duration-200 group-hover/clear:translate-y-0 group-hover/clear:opacity-100"
                       >
                         <div className="flex items-center gap-1.5">
                           <span
@@ -4593,7 +4593,7 @@ export default function Home() {
 
             {/* Right: Policy and support links */}
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#94A3B8] lg:justify-end">
-              <span className="group/contact relative inline-flex">
+              <span className="group/contact footer-contact relative inline-flex">
                 <a
                   href="https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support"
                   target="_blank"
@@ -4617,7 +4617,7 @@ export default function Home() {
                 <span
                   id="footer-support-tooltip"
                   role="tooltip"
-                  className="pointer-events-auto invisible absolute bottom-[calc(100%+0.65rem)] left-1/2 z-50 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] backdrop-blur-xl transition-all duration-200 group-hover/contact:visible group-hover/contact:translate-y-0 group-hover/contact:opacity-100 group-focus-within/contact:visible group-focus-within/contact:translate-y-0 group-focus-within/contact:opacity-100"
+                  className="footer-contact-tooltip pointer-events-auto invisible absolute bottom-[calc(100%+0.65rem)] left-1/2 z-50 w-max max-w-[calc(100vw-2rem)] -translate-x-1/2 translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] backdrop-blur-xl transition-all duration-200 group-hover/contact:visible group-hover/contact:translate-y-0 group-hover/contact:opacity-100 group-focus-within/contact:visible group-focus-within/contact:translate-y-0 group-focus-within/contact:opacity-100"
                 >
                   <span className="flex items-center gap-1.5 whitespace-nowrap">
                     <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-400 shadow-[0_0_6px_rgba(94,234,212,0.8)]" aria-hidden="true" />

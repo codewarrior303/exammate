@@ -47,6 +47,35 @@ body {
   }
 }
 
+/* Keep routine actions together on touch layouts and prevent anchored tips
+   from being cut off at the viewport edges. */
+@media (max-width: 640px) {
+  .routine-action-buttons {
+    gap: 1rem;
+    max-width: 100%;
+  }
+
+  .routine-action-buttons > * {
+    flex: 0 0 auto;
+  }
+
+  .routine-action-buttons .btn-ghost-glass {
+    white-space: nowrap;
+    padding-inline: 0.75rem;
+  }
+
+  .routine-upload-zone {
+    flex-shrink: 0;
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+  [role="tooltip"]:not(.google-connect-tooltip) {
+    display: none !important;
+  }
+}
+
 * {
   scrollbar-width: none;
   -ms-overflow-style: none;
