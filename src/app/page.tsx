@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CalendarDays,
@@ -47,7 +48,6 @@ import { parseExcelFile } from "@/lib/parsers/excel";
 import type { ParsedExam } from "@/lib/parsers/normalize";
 
 const ROUTINE_STORAGE_KEY = "examMate:routine:v1";
-const RECENT_DRIVE_LINKS_KEY = "examMate:recentDriveLinks";
 
 // Demo sample exams for instant synthesis test
 const SAMPLE_EXAMS: ParsedExam[] = [
@@ -234,25 +234,37 @@ function normalizeDriveLink(val: string): string {
   return `https://${trimmed}`;
 }
 
-const GOOGLE_BASE_SCOPES = [
+const GOOGLE_IDENTITY_SCOPES = [
   "openid",
   "email",
   "profile",
-  "https://www.googleapis.com/auth/calendar.events",
+];
+
+const GOOGLE_CALENDAR_SCOPES = [
+  ...GOOGLE_IDENTITY_SCOPES,
+  "https://www.googleapis.com/auth/calendar.events.owned",
 ];
 
 const GOOGLE_DRIVE_SCOPES = [
-  ...GOOGLE_BASE_SCOPES,
+  ...GOOGLE_IDENTITY_SCOPES,
+  "https://www.googleapis.com/auth/drive.readonly",
+];
+
+const GOOGLE_CALENDAR_DRIVE_SCOPES = [
+  ...GOOGLE_CALENDAR_SCOPES,
   "https://www.googleapis.com/auth/drive.readonly",
 ];
 
 async function startGoogleSignIn(options?: {
   requireDrive?: boolean;
+  driveOnly?: boolean;
   forceConsent?: boolean;
 }) {
-  const scopes = options?.requireDrive
+  const scopes = options?.driveOnly
     ? GOOGLE_DRIVE_SCOPES
-    : GOOGLE_BASE_SCOPES;
+    : options?.requireDrive
+      ? GOOGLE_CALENDAR_DRIVE_SCOPES
+      : GOOGLE_CALENDAR_SCOPES;
   return authClient.signIn.social({
     provider: "google",
     callbackURL: "/",
@@ -267,8 +279,8 @@ async function startGoogleSignIn(options?: {
 
 async function startGoogleSignInPopup(options?: { requireDrive?: boolean }) {
   const scopes = options?.requireDrive
-    ? GOOGLE_DRIVE_SCOPES
-    : GOOGLE_BASE_SCOPES;
+    ? GOOGLE_CALENDAR_DRIVE_SCOPES
+    : GOOGLE_CALENDAR_SCOPES;
   return (authClient.signIn as any).popup({
     provider: "google",
     scopes,
@@ -520,6 +532,12 @@ function SupersonicRocketCraft({ isDocked }: { isDocked?: boolean }) {
 }
 
 export default function Home() {
+  const router = useRouter();
+
+  function navigateWithFeedback(path: string) {
+    window.dispatchEvent(new Event("exammate:navigate"));
+    router.push(path);
+  }
   const { data: authSession } = authClient.useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -773,6 +791,12 @@ export default function Home() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
+      // Keep only the generated routine in persistent browser storage.
+      // This also removes legacy Drive-link history and any stale non-routine keys.
+      for (const key of Object.keys(window.localStorage)) {
+        if (key !== ROUTINE_STORAGE_KEY) window.localStorage.removeItem(key);
+      }
+
       const pendingCourses = window.sessionStorage.getItem(
         "examMate:pendingCourses",
       );
@@ -938,30 +962,6 @@ export default function Home() {
   }, [authSession?.user, generatedExams, isHydrated, isSampleRoutine]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      const raw = window.localStorage.getItem(RECENT_DRIVE_LINKS_KEY);
-      if (raw) {
-        const parsed = JSON.parse(raw) as unknown;
-        if (Array.isArray(parsed)) {
-          const valid = parsed
-            .map((item) => (typeof item === "string" ? normalizeDriveLink(item) : ""))
-            .filter((item): item is string => isGoogleDriveLink(item));
-          setRecentLinks(valid.slice(0, 3));
-          if (valid.length !== parsed.length) {
-            window.localStorage.setItem(
-              RECENT_DRIVE_LINKS_KEY,
-              JSON.stringify(valid.slice(0, 3)),
-            );
-          }
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
       const target = event.target as Node;
       const isInsideBox = linkBoxRef.current?.contains(target);
@@ -988,41 +988,16 @@ export default function Home() {
       const filtered = prev.filter(
         (item) => item !== normalized && isGoogleDriveLink(item),
       );
-      const updated = [normalized, ...filtered].slice(0, 3);
-      try {
-        window.localStorage.setItem(
-          RECENT_DRIVE_LINKS_KEY,
-          JSON.stringify(updated),
-        );
-      } catch {
-        // ignore
-      }
-      return updated;
+      return [normalized, ...filtered].slice(0, 3);
     });
   }
 
   function removeRecentLink(linkToRemove: string) {
-    setRecentLinks((prev) => {
-      const updated = prev.filter((item) => item !== linkToRemove);
-      try {
-        window.localStorage.setItem(
-          RECENT_DRIVE_LINKS_KEY,
-          JSON.stringify(updated),
-        );
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
+    setRecentLinks((prev) => prev.filter((item) => item !== linkToRemove));
   }
 
   function clearAllRecentLinks() {
     setRecentLinks([]);
-    try {
-      window.localStorage.removeItem(RECENT_DRIVE_LINKS_KEY);
-    } catch {
-      // ignore
-    }
   }
 
   async function handlePasteFromClipboard() {
@@ -1468,7 +1443,7 @@ export default function Home() {
           }
           setGoogleLoading(true);
           setMessage("Connecting Google account");
-          await startGoogleSignIn({ requireDrive: true });
+          await startGoogleSignIn({ requireDrive: true, driveOnly: true });
           return;
         } catch (signInErr) {
           setError(
@@ -1770,7 +1745,6 @@ export default function Home() {
           window.localStorage.removeItem(ROUTINE_STORAGE_KEY);
           window.localStorage.removeItem("examMate:routine:v1");
           window.localStorage.removeItem("examMate:savedDriveLink");
-          window.localStorage.removeItem(RECENT_DRIVE_LINKS_KEY);
           window.sessionStorage.removeItem("examMate:routineSource");
           window.sessionStorage.removeItem("examMate:pendingDriveLink");
           window.sessionStorage.removeItem("examMate:pendingCourses");
@@ -2294,7 +2268,7 @@ export default function Home() {
             choose to sync your routine, ExamMate requests calendar event
             permission (
             <code className="text-teal-300 bg-teal-950/60 px-1 py-0.5 rounded border border-teal-500/20 text-[11px]">
-              calendar.events
+              calendar.events.owned
             </code>
             ) solely to add your matched exam dates, shift times, and reminders
             directly to your primary calendar.
@@ -2366,10 +2340,10 @@ export default function Home() {
       <div className="relative z-10 w-full max-w-[1240px] px-3 pt-3 pb-16 flex flex-col gap-8 sm:px-6 sm:pt-4 sm:pb-20 sm:gap-10 lg:px-8 min-w-0">
         {/* NAVBAR */}
         <header className="order-1 z-20 w-full rounded-2xl glass-panel border border-teal-500/30 px-2.5 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-          {/* Left: icon.svg logo + ExamMate */}
+          {/* Left: shared ExamMate icon + wordmark */}
           <div className="flex min-w-0 items-center gap-2 sm:gap-3">
             <img
-              src="/exammate-logo.svg"
+              src="/icon.svg"
               alt="ExamMate Logo"
               width="28"
               height="28"
@@ -3722,7 +3696,13 @@ export default function Home() {
                         ) : isClearedJustNow ? (
                           <Check className="w-3.5 h-3.5 text-emerald-300 animate-in zoom-in-75 duration-200" />
                         ) : (
-                          <Trash2 className="w-3.5 h-3.5 text-teal-400/70 transition-transform duration-200 group-hover/clear:text-rose-400 group-hover/clear:scale-110" />
+                          <Trash2
+                            className={`h-3.5 w-3.5 shrink-0 ${
+                              hasDataToClear
+                                ? "text-teal-400/70 transition-colors duration-200 group-hover/clear:text-rose-400"
+                                : "text-teal-400/70"
+                            }`}
+                          />
                         )}
                         <span>
                           {isClearing
@@ -3736,7 +3716,7 @@ export default function Home() {
                       {/* Custom Glassmorphic Tooltip */}
                       <div
                         role="tooltip"
-                        className="routine-clear-tooltip pointer-events-none absolute bottom-[calc(100%+0.65rem)] left-1/2 z-50 w-max max-w-[min(20rem,calc(100vw-2.5rem))] -translate-x-1/2 translate-y-1 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] backdrop-blur-xl transition-all duration-200 group-hover/clear:translate-y-0 group-hover/clear:opacity-100"
+                        className="routine-clear-tooltip pointer-events-none absolute bottom-[calc(100%+0.65rem)] left-1/2 z-50 w-max max-w-[min(20rem,calc(100vw-2.5rem))] -translate-x-1/2 rounded-xl border border-teal-400/35 bg-[#0A1822]/95 px-3.5 py-1.5 text-xs font-medium text-teal-100 opacity-0 shadow-[0_12px_30px_rgba(0,0,0,0.65),0_0_15px_rgba(94,234,212,0.18)] backdrop-blur-xl transition-opacity duration-200 group-hover/clear:opacity-100"
                       >
                         <div className="flex items-center gap-1.5">
                           <span
@@ -4453,6 +4433,32 @@ export default function Home() {
                                         return;
                                       }
 
+                                      if (authSession && !hasCalendarScope) {
+                                        window.sessionStorage.setItem(
+                                          "examMate:pendingCalendarSync",
+                                          "true",
+                                        );
+                                        const scopeResult = await authClient.linkSocial({
+                                          provider: "google",
+                                          callbackURL: "/",
+                                          scopes: GOOGLE_CALENDAR_SCOPES,
+                                          additionalParams: {
+                                            access_type: "offline",
+                                            prompt: "select_account consent",
+                                          },
+                                        });
+                                        if (scopeResult?.error) {
+                                          window.sessionStorage.removeItem(
+                                            "examMate:pendingCalendarSync",
+                                          );
+                                          throw new Error(
+                                            scopeResult.error.message ||
+                                              "Calendar permission was not granted.",
+                                          );
+                                        }
+                                        return;
+                                      }
+
                                       const requireDrive =
                                         routineSourceRef.current === "drive";
                                       const popupResult =
@@ -4575,11 +4581,11 @@ export default function Home() {
         >
           {/* Main Footer Row */}
           <div className="flex flex-col lg:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center lg:text-left">
-            {/* Left: ExamMate logo (using icon.svg) and short description */}
+            {/* Left: shared ExamMate icon and wordmark */}
             <div className="flex items-center justify-center gap-2.5 lg:justify-start">
               <div className="flex items-center gap-2.5">
                 <img
-                  src="/exammate-logo.svg"
+                  src="/icon.svg"
                   alt="ExamMate Logo"
                   width="24"
                   height="24"
@@ -4594,26 +4600,30 @@ export default function Home() {
             {/* Right: Policy and support links */}
             <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[#94A3B8] lg:justify-end">
               <span className="group/contact footer-contact relative inline-flex">
-                <a
-                  href="https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  <button
+                  type="button"
                   aria-describedby="footer-support-tooltip"
                   aria-label="Contact ExamMate support"
                   onClick={(event) => {
                     const isTouchDevice =
                       navigator.maxTouchPoints > 0 &&
                       window.matchMedia("(pointer: coarse)").matches;
-                    if (!isTouchDevice) return;
-                    event.preventDefault();
-                    window.location.href =
-                      "mailto:exammate.support@gmail.com?subject=ExamMate%20Support";
+                    if (isTouchDevice) {
+                      window.location.href =
+                        "mailto:exammate.support@gmail.com?subject=ExamMate%20Support";
+                    } else {
+                      window.open(
+                        "https://mail.google.com/mail/?view=cm&fs=1&to=exammate.support%40gmail.com&su=ExamMate%20Support",
+                        "_blank",
+                        "noopener,noreferrer",
+                      );
+                    }
                   }}
-                  className="inline-flex items-center gap-1.5 text-[#94A3B8] transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1118]"
+                  className="inline-flex items-center gap-1.5 border-0 bg-transparent p-0 text-[#94A3B8] transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0A1118]"
                 >
                   <Mail className="h-3.5 w-3.5 text-teal-400" aria-hidden="true" />
                   Contact
-                </a>
+                </button>
                 <span
                   id="footer-support-tooltip"
                   role="tooltip"
@@ -4626,29 +4636,37 @@ export default function Home() {
                   <span className="absolute -bottom-1 left-1/2 h-2 w-2 -translate-x-1/2 rotate-45 border-b border-r border-teal-400/35 bg-[#0A1822]" aria-hidden="true" />
                 </span>
               </span>
-              <Link
-                href="/privacy"
-                className="hover:text-teal-300 transition-colors"
-              >
+              <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-teal-300/70" />
+              <button type="button" onClick={() => navigateWithFeedback("/privacy")} className="border-0 bg-transparent p-0 text-inherit hover:text-teal-300 transition-colors">
                 Privacy Policy
-              </Link>
-              <Link
-                href="/terms"
-                className="hover:text-teal-300 transition-colors"
-              >
+              </button>
+              <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-teal-300/70" />
+              <button type="button" onClick={() => navigateWithFeedback("/terms")} className="border-0 bg-transparent p-0 text-inherit hover:text-teal-300 transition-colors">
                 Terms
-              </Link>
+              </button>
             </div>
           </div>
 
           {/* Centered credit line */}
           <div className="pb-1 text-center text-[11px] text-[#64748B]">
-            © {new Date().getFullYear()} ExamMate{" "}
-            <span className="px-1.5 text-teal-500/60">·</span>
+            © {new Date().getFullYear()}{" "}
+            <button
+              type="button"
+              onClick={() => navigateWithFeedback("/license")}
+              className="rounded-sm border-0 bg-transparent p-0 text-inherit transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
+              aria-label="ExamMate License"
+            >
+              ExamMate
+            </button>{" "}
+            <span aria-hidden="true" className="mx-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-teal-300/70 align-middle" />
             Made by{" "}
-            <span className="font-medium text-[#94A3B8]">
+            <button
+              type="button"
+              onClick={() => window.location.assign("https://ahnafabir.vercel.app/")}
+              className="border-0 bg-transparent p-0 font-medium text-[#94A3B8] transition-colors hover:text-teal-300"
+            >
               Ahnaf Shahriar Abir
-            </span>
+            </button>
           </div>
         </LazySection>
       </div>

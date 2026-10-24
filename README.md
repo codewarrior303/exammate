@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/exammate-logo.svg" alt="ExamMate logo" width="64" height="64" />
+  <img src="src/app/icon.svg" alt="ExamMate logo" width="64" height="64" />
 </p>
 
 <h1 align="center">ExamMate</h1>
@@ -58,4 +58,4 @@ See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](http
 
 ExamMate's original project materials are proprietary and reserved by their respective rights holders. This repository does not grant permission to copy, modify, redistribute, or commercially use those materials. Third-party packages and the original routine script credited above remain subject to their own owners' rights and license terms.
 
-Read the full [ExamMate License](LICENSE). For licensing questions, contact [exammate.support@gmail.com](mailto:exammate.support@gmail.com).
+Read the full [ExamMate License](LICENSE). For licensing questions, email [exammate.support@gmail.com](mailto:exammate.support@gmail.com).

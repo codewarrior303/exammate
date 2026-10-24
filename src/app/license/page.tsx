@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Mail } from "lucide-react";
 import PolicyPage from "../policy-page";
+import LicenseContactLink from "./license-contact-link";
 
 export const metadata: Metadata = {
   title: "License | ExamMate",
@@ -56,16 +58,20 @@ export default function LicensePage() {
           </p>
         </section>
 
-        <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
-          For written permission or licensing questions, email{" "}
-          <a
-            className="text-teal-300 underline underline-offset-4 hover:text-teal-100"
-            href="mailto:exammate.support@gmail.com?subject=ExamMate%20License"
-          >
-            exammate.support@gmail.com
-          </a>
-          .
-        </p>
+        <section className="mt-2 flex gap-4 rounded-2xl border border-teal-400/25 bg-gradient-to-br from-teal-400/[0.09] via-[#0d1b22]/80 to-cyan-400/[0.04] p-4 shadow-[0_12px_32px_rgba(0,0,0,0.2)] sm:p-5">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-teal-400/25 bg-teal-400/10 text-teal-300">
+            <Mail size={18} aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-white">
+              Questions about this license?
+            </h2>
+            <p className="mt-1 text-xs leading-relaxed text-slate-300 sm:text-sm">
+              For written permission or licensing questions, contact us at
+            </p>
+            <LicenseContactLink />
+          </div>
+        </section>
       </div>
     </PolicyPage>
   );

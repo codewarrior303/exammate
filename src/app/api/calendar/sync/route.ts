@@ -119,6 +119,7 @@ export async function GET() {
     }
     const scopes = googleAccount.scopes ?? [];
     const hasCalendarScope = scopes.some((scope) =>
+      scope === "https://www.googleapis.com/auth/calendar.events.owned" ||
       scope === "https://www.googleapis.com/auth/calendar" ||
       scope === "https://www.googleapis.com/auth/calendar.events"
     );

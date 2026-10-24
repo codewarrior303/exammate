@@ -165,11 +165,11 @@ export const auth = betterAuth({
       clientSecret: googleClientSecret,
       accessType: "offline",
       prompt: "select_account consent",
+      disableDefaultScope: true,
       scope: [
         "openid",
         "email",
         "profile",
-        "https://www.googleapis.com/auth/calendar.events",
       ],
     },
   },
