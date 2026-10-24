@@ -21,6 +21,7 @@ const nextConfig: NextConfig = {
       "font-src 'self' https://fonts.gstatic.com data:",
       "img-src 'self' blob: data: https:",
       "connect-src 'self' https://*.google.com https://*.googleapis.com",
+      "frame-src 'self' data:",
       "frame-ancestors 'none'",
       "object-src 'none'",
       "base-uri 'self'",
