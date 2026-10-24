@@ -1872,6 +1872,11 @@ export default function Home() {
     ]);
 
     const doc = new jsPDF({ orientation: "landscape" });
+    doc.setProperties({
+      title: "ExamMate-Schedule",
+      subject: "ExamMate exam schedule",
+      creator: "ExamMate",
+    });
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     doc.setFont("helvetica", "bold");
@@ -1962,21 +1967,18 @@ export default function Home() {
       setError("Generate your routine before printing PDF.");
       return;
     }
-    const originalTitle = document.title;
-    let restored = false;
-    const restoreTitle = () => {
-      if (restored) return;
-      restored = true;
-      document.title = originalTitle;
-      window.removeEventListener("afterprint", restoreTitle);
-    };
-
-    // Use the existing print stylesheet instead of a blob URL. Browsers use
-    // the page title as the suggested filename when saving the print as PDF.
-    document.title = "ExamMate-Schedule";
-    window.addEventListener("afterprint", restoreTitle, { once: true });
-    window.print();
-    window.setTimeout(restoreTitle, 60_000);
+    try {
+      const doc = await buildPdfDocument();
+      doc.autoPrint();
+      const printWindow = doc.output("dataurlnewwindow", {
+        filename: "ExamMate-Schedule.pdf",
+      });
+      if (!printWindow) {
+        setError("Allow pop-ups for ExamMate to print your PDF.");
+      }
+    } catch {
+      setError("Could not prepare the PDF for printing. Please try again.");
+    }
   }
 
   // Ctrl+P / Cmd+P shortcut: triggers printPdf if table is generated; blocks native print otherwise
