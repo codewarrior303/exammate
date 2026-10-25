@@ -114,7 +114,7 @@ if (process.env.NODE_ENV !== "production" && databaseUri) {
 }
 
 export const auth = betterAuth({
-  appName: "SEU Exam Routine",
+  appName: "ExamMate",
   baseURL,
   secret,
   plugins: [oauthPopup()],

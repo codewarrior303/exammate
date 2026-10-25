@@ -188,16 +188,6 @@ function isValidStoredRoutine(value: unknown): value is {
   );
 }
 
-function isVarsityEmail(email?: string | null): boolean {
-  if (!email) return false;
-  const lower = email.trim().toLowerCase();
-  return (
-    lower.endsWith("@seu.edu.bd") ||
-    lower.endsWith(".edu.bd") ||
-    lower.endsWith(".edu")
-  );
-}
-
 function isGoogleDriveLink(val: unknown): boolean {
   if (!val || typeof val !== "string") return false;
   const trimmed = val.trim();
@@ -234,56 +224,17 @@ function normalizeDriveLink(val: string): string {
   return `https://${trimmed}`;
 }
 
-const GOOGLE_IDENTITY_SCOPES = [
+const GOOGLE_CALENDAR_SCOPES = [
   "openid",
   "email",
   "profile",
-];
-
-const GOOGLE_CALENDAR_SCOPES = [
-  ...GOOGLE_IDENTITY_SCOPES,
   "https://www.googleapis.com/auth/calendar.events.owned",
 ];
 
-const GOOGLE_DRIVE_SCOPES = [
-  ...GOOGLE_IDENTITY_SCOPES,
-  "https://www.googleapis.com/auth/drive.readonly",
-];
-
-const GOOGLE_CALENDAR_DRIVE_SCOPES = [
-  ...GOOGLE_CALENDAR_SCOPES,
-  "https://www.googleapis.com/auth/drive.readonly",
-];
-
-async function startGoogleSignIn(options?: {
-  requireDrive?: boolean;
-  driveOnly?: boolean;
-  forceConsent?: boolean;
-}) {
-  const scopes = options?.driveOnly
-    ? GOOGLE_DRIVE_SCOPES
-    : options?.requireDrive
-      ? GOOGLE_CALENDAR_DRIVE_SCOPES
-      : GOOGLE_CALENDAR_SCOPES;
-  return authClient.signIn.social({
-    provider: "google",
-    callbackURL: "/",
-    errorCallbackURL: "/?auth_error=google_oauth",
-    scopes,
-    additionalParams: {
-      access_type: "offline",
-      prompt: "select_account consent",
-    },
-  });
-}
-
-async function startGoogleSignInPopup(options?: { requireDrive?: boolean }) {
-  const scopes = options?.requireDrive
-    ? GOOGLE_CALENDAR_DRIVE_SCOPES
-    : GOOGLE_CALENDAR_SCOPES;
+async function startGoogleSignInPopup() {
   return (authClient.signIn as any).popup({
     provider: "google",
-    scopes,
+    scopes: GOOGLE_CALENDAR_SCOPES,
     additionalParams: {
       access_type: "offline",
       prompt: "select_account consent",
@@ -547,8 +498,6 @@ export default function Home() {
   const [courseInput, setCourseInput] = useState("");
   const [courseDraft, setCourseDraft] = useState("");
   const [driveLink, setDriveLink] = useState("");
-  const [restrictedDriveFileId, setRestrictedDriveFileId] = useState("");
-  const [requiresGoogleAuth, setRequiresGoogleAuth] = useState(false);
   const [allExams, setAllExams] = useState<ParsedExam[]>([]);
   const [generatedExams, setGeneratedExams] = useState<ParsedExam[]>([]);
   const [visibleRowCount, setVisibleRowCount] = useState<number>(0);
@@ -797,14 +746,6 @@ export default function Home() {
         if (key !== ROUTINE_STORAGE_KEY) window.localStorage.removeItem(key);
       }
 
-      const pendingCourses = window.sessionStorage.getItem(
-        "examMate:pendingCourses",
-      );
-      if (pendingCourses) setCourseInput(pendingCourses);
-      const pendingLink = window.sessionStorage.getItem(
-        "examMate:pendingDriveLink",
-      );
-      if (pendingLink) setDriveLink(pendingLink);
       const savedSource = window.sessionStorage.getItem(
         "examMate:routineSource",
       );
@@ -886,71 +827,9 @@ export default function Home() {
     return () => window.clearTimeout(timer);
   }, [savedNotice]);
 
-  // Auto-resume routine generation if redirected back from Google sign-in
+  // Scroll an existing generated schedule into view after the session hydrates.
   useEffect(() => {
     if (typeof window === "undefined" || !authSession?.user || !isHydrated) return;
-    try {
-      const pendingLink = window.sessionStorage.getItem(
-        "examMate:pendingDriveLink",
-      );
-      const pendingCourses = window.sessionStorage.getItem(
-        "examMate:pendingCourses",
-      );
-      if (pendingLink) {
-        window.sessionStorage.removeItem("examMate:pendingDriveLink");
-        window.sessionStorage.removeItem("examMate:pendingCourses");
-        setDriveLink(pendingLink);
-        if (pendingCourses) {
-          setCourseInput(pendingCourses);
-        }
-        // Direct smooth scroll to the results table section immediately
-        window.setTimeout(() => {
-          const resultsEl = document.getElementById("results");
-          if (resultsEl) {
-            resultsEl.scrollIntoView({ behavior: "smooth", block: "start" });
-          }
-        }, 100);
-        window.setTimeout(() => {
-          void handleGenerate(pendingLink, pendingCourses || undefined);
-        }, 350);
-        return;
-      }
-    } catch {
-      // ignore storage errors
-    }
-
-    try {
-      const justConnected = window.sessionStorage.getItem(
-        "examMate:justConnectedGoogle",
-      );
-      if (justConnected === "true") {
-        window.sessionStorage.removeItem("examMate:justConnectedGoogle");
-        if (
-          generatedExams.length > 0 &&
-          !isSampleRoutine &&
-          routineSourceRef.current !== "sample"
-        ) {
-          const syncKey = JSON.stringify(generatedExams);
-          if (lastCalendarSyncRef.current !== syncKey) {
-            lastCalendarSyncRef.current = syncKey;
-            setMessage("Google connected. Syncing your routine to Calendar…");
-            window.setTimeout(() => {
-              void syncCalendar(generatedExams);
-            }, 500);
-          }
-        }
-        window.setTimeout(() => {
-          const resultsEl = document.getElementById("results");
-          if (resultsEl) {
-            resultsEl.scrollIntoView({ behavior: "smooth" });
-          }
-        }, 450);
-      }
-    } catch {
-      // ignore
-    }
-
-    // Direct scroll to results section if routine is already generated
     if (generatedExams.length > 0) {
       window.setTimeout(() => {
         const resultsEl = document.getElementById("results");
@@ -959,7 +838,7 @@ export default function Home() {
         }
       }, 400);
     }
-  }, [authSession?.user, generatedExams, isHydrated, isSampleRoutine]);
+  }, [authSession?.user, generatedExams, isHydrated]);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent | TouchEvent) {
@@ -1237,21 +1116,9 @@ export default function Home() {
       body: JSON.stringify({ url: link }),
     });
     if (!response.ok) {
-      const details = (await response.json().catch(() => ({}))) as {
-        error?: string;
-        fileId?: string;
-        requiresGoogleAuth?: boolean;
-      };
-      if (details.fileId) {
-        setRestrictedDriveFileId(details.fileId);
-      }
-      if (details.requiresGoogleAuth) {
-        setRequiresGoogleAuth(true);
-      }
+      const details = (await response.json().catch(() => ({}))) as { error?: string };
       throw new Error(details.error || "Could not read Google Drive link.");
     }
-    setRestrictedDriveFileId("");
-    setRequiresGoogleAuth(false);
     const blob = await response.blob();
     const name = response.headers.get("X-File-Name") || "drive-routine.xlsx";
     const parsed = await parseRoutineFile(new File([blob], name));
@@ -1288,14 +1155,9 @@ export default function Home() {
 
   function clearUploadedFile() {
     setFileName("");
-    setRestrictedDriveFileId("");
-    setRequiresGoogleAuth(false);
     setAllExams([]);
     setCourseInput("");
     setCourseDraft("");
-    if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem("examMate:pendingCourses");
-    }
     if (inputRef.current) inputRef.current.value = "";
     setMessage("");
   }
@@ -1306,12 +1168,8 @@ export default function Home() {
     setCourseInput("");
     setCourseDraft("");
     if (typeof window !== "undefined") {
-      window.sessionStorage.removeItem("examMate:pendingDriveLink");
       window.localStorage.removeItem("examMate:savedDriveLink");
-      window.sessionStorage.removeItem("examMate:pendingCourses");
     }
-    setRestrictedDriveFileId("");
-    setRequiresGoogleAuth(false);
     if (fileName === "Google Drive link") {
       setFileName("");
       setAllExams([]);
@@ -1362,12 +1220,8 @@ export default function Home() {
     input?.focus();
   }
 
-  async function handleGenerate(
-    overrideLink?: string,
-    overrideCourses?: string,
-  ) {
-    const rawLink = typeof overrideLink === "string" ? overrideLink : driveLink;
-    const link = rawLink.trim();
+  async function handleGenerate() {
+    const link = driveLink.trim();
     if (!link && !allExams.length) {
       setError("Upload a routine file or paste a Drive link.");
       return;
@@ -1377,12 +1231,10 @@ export default function Home() {
       return;
     }
 
-    const effectiveCourseSource =
-      typeof overrideCourses === "string" ? overrideCourses : courseInput;
     const pendingDraft = courseDraft.trim().toUpperCase();
     let effectiveSelectedCodes = Array.from(
       new Set(
-        effectiveCourseSource
+        courseInput
           .split(/[\n,]+/)
           .map((v) => v.trim().toUpperCase())
           .filter((v) => Boolean(v) && isFullCourseCode(v))
@@ -1427,35 +1279,6 @@ export default function Home() {
     if (link) {
       addRecentLink(link);
       setShowLinkPopup(false);
-
-      const userEmail = authSession?.user?.email;
-      const isVarsity = isVarsityEmail(userEmail);
-
-      if (!isVarsity) {
-        try {
-          window.sessionStorage.setItem("examMate:pendingDriveLink", link);
-          window.sessionStorage.setItem(
-            "examMate:pendingCourses",
-            effectiveSelectedCodes.join(", "),
-          );
-          if (authSession?.user) {
-            await authClient.signOut();
-          }
-          setGoogleLoading(true);
-          setMessage("Connecting Google account");
-          await startGoogleSignIn({ requireDrive: true, driveOnly: true });
-          return;
-        } catch (signInErr) {
-          setError(
-            signInErr instanceof Error
-              ? signInErr.message
-              : "Sign-in failed. Please connect Google from navbar.",
-          );
-          setGenerating(false);
-          setGoogleLoading(false);
-          return;
-        }
-      }
 
       try {
         sourceExams = await loadExamsFromDrive(link);
@@ -1575,11 +1398,9 @@ export default function Home() {
       }
 
       const isConnected = Boolean(authSession?.user);
-      const isVarsity = isConnected && isVarsityEmail(authSession?.user?.email);
 
-      // Scenario A: Connected with Personal Google OR Varsity Google that already has Calendar permission:
-      // -> Direct Auto-sync with connected Google Calendar! No popup prompt!
-      if (isConnected && (!isVarsity || hasCalendarScope)) {
+      // A connected account with Calendar permission syncs the newly generated routine.
+      if (isConnected && hasCalendarScope) {
         setShowCalendarSyncPrompt(false);
         setIsSyncPromptClosing(false);
         if (syncPromptTimeoutRef.current) {
@@ -1600,10 +1421,8 @@ export default function Home() {
             void syncCalendar(matches);
           }, 500);
         }
-      } else if (isConnected && isVarsity && !hasCalendarScope) {
-        // Scenario B: Connected with Varsity Google, but only Drive access was granted (no calendar permission):
-        // Show in-table popup dialog asking if user wants to sync calendar.
-        // Clicking Yes will open the Google consent popup to grant calendar permission, then sync!
+      } else if (isConnected && !hasCalendarScope) {
+        // Ask before requesting Calendar permission for an identity-only connection.
         setShowCalendarSyncPrompt(false);
         setIsSyncPromptClosing(false);
         if (syncPromptTimeoutRef.current) {
@@ -1734,8 +1553,6 @@ export default function Home() {
       setFileName("");
       setDriveLink("");
       setAllExams([]);
-      setRestrictedDriveFileId("");
-      setRequiresGoogleAuth(false);
       if (inputRef.current) {
         inputRef.current.value = "";
       }
@@ -1746,8 +1563,6 @@ export default function Home() {
           window.localStorage.removeItem("examMate:routine:v1");
           window.localStorage.removeItem("examMate:savedDriveLink");
           window.sessionStorage.removeItem("examMate:routineSource");
-          window.sessionStorage.removeItem("examMate:pendingDriveLink");
-          window.sessionStorage.removeItem("examMate:pendingCourses");
           window.sessionStorage.removeItem("examMate:pendingCalendarSync");
           window.sessionStorage.removeItem("examMate:justConnectedGoogle");
         }
@@ -1777,59 +1592,18 @@ export default function Home() {
       setError("Please generate a routine before connecting Google.");
       return;
     }
-    if (driveLink.trim()) {
-      try {
-        window.sessionStorage.setItem(
-          "examMate:pendingDriveLink",
-          driveLink.trim(),
-        );
-        if (selectedCourseCodes.length) {
-          window.sessionStorage.setItem(
-            "examMate:pendingCourses",
-            selectedCourseCodes.join(", "),
-          );
-        }
-      } catch {
-        // ignore
-      }
-    }
-    try {
-      window.sessionStorage.setItem("examMate:justConnectedGoogle", "true");
-    } catch {
-      // ignore
-    }
     setError("");
-    if (rocketFlight === "idle-docked" || rocketFlight === "launching") {
-      setRocketFlight("diving");
-      await new Promise((resolve) => setTimeout(resolve, 1300));
+    if (generatedExams.length === 0) {
+      setError("Generate a routine with matched exams before connecting Calendar.");
+      return;
     }
-    setGoogleLoading(true);
-    try {
-      const requireDrive = Boolean(
-        isLinkActive || routineSourceRef.current === "drive",
-      );
-      const result = await startGoogleSignIn({ requireDrive });
-      if (result?.error) {
-        throw new Error(result.error.message || "Google sign-in failed.");
-      }
-      if (generatedExams.length > 0) {
-        window.setTimeout(() => {
-          const resultsEl = document.getElementById("results");
-          if (resultsEl) {
-            resultsEl.scrollIntoView({ behavior: "smooth" });
-          }
-        }, 400);
-      }
-    } catch (connectError) {
-      setRocketFlight("launching");
-      setError(
-        connectError instanceof Error
-          ? connectError.message
-          : "Google sign-in failed.",
-      );
-    } finally {
-      setGoogleLoading(false);
-    }
+    setShowCalendarSyncPrompt(true);
+    window.setTimeout(() => {
+      document.getElementById("results")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 0);
   }
 
   async function handleGoogleDisconnect() {
@@ -2236,20 +2010,16 @@ export default function Home() {
       answer: (
         <span className="space-y-2 block">
           <span>
-            Paste your shared Google Drive or Sheets link in Option 2. If the
-            routine spreadsheet requires institutional authorization
-            (@seu.edu.bd), clicking Generate will prompt a secure Google sign-in
-            requesting read-only access (
-            <code className="text-teal-300 bg-teal-950/60 px-1 py-0.5 rounded border border-teal-500/20 text-[11px]">
-              drive.readonly
-            </code>
-            ) strictly to download that specific routine file.
+            Paste a Google Drive or Sheets link that is shared as Anyone with
+            the link can view, or upload the routine file from your device.
+            Drive-link import does not ask for Google Drive access or require
+            Google sign-in. Private files cannot be fetched through a link.
           </span>
           <span className="block text-slate-400">
-            ExamMate accesses only the specific target file ID provided in the
-            link. It never searches, browses, edits, or deletes any other files
-            in your Google Drive, and the routine is parsed directly in browser
-            memory with zero server storage.
+            For a shared link, ExamMate&apos;s server temporarily fetches and
+            returns the linked file to your browser for parsing. We do not
+            intentionally retain the file or link in our application database.
+            See the Privacy Policy for details.
           </span>
         </span>
       ),
@@ -2265,18 +2035,22 @@ export default function Home() {
         <span className="space-y-2 block">
           <span>
             Yes. Connecting Google Calendar is completely optional. When you
-            choose to sync your routine, ExamMate requests calendar event
-            permission (
+            choose to sync, ExamMate requests identity access and the Calendar
+            scope (
             <code className="text-teal-300 bg-teal-950/60 px-1 py-0.5 rounded border border-teal-500/20 text-[11px]">
               calendar.events.owned
             </code>
-            ) solely to add your matched exam dates, shift times, and reminders
-            directly to your primary calendar.
+            ), which Google defines as permission to view, create, change, and
+            delete events on calendars you own. ExamMate uses it to create or
+            update only the exam events it generates in your primary calendar.
           </span>
           <span className="block text-slate-400">
-            ExamMate only creates new exam events for the courses you selected;
-            it never reads, alters, or deletes any of your existing personal
-            calendar events.
+            The app does not list/read your existing events or delete calendar
+            events. When syncing, selected course and exam details are sent to
+            Google Calendar. Disconnecting leaves already-synced events in
+            Calendar. After you connect and authorize Calendar, generating a
+            routine can sync its matched events automatically. Read the
+            Privacy Policy for the complete data flow.
           </span>
         </span>
       ),
@@ -2286,10 +2060,10 @@ export default function Home() {
       answer: (
         <span className="space-y-2 block">
           <span>
-            Your routine is processed client-side in your browser and never
-            stored on our servers. Generated schedules are saved locally on your
-            device for 15 days for quick access and automatically expire
-            afterwards.
+            Uploaded files are parsed in your browser. Generated schedules are
+            saved in your browser for 15 days. Shared Drive links are fetched
+            temporarily by our server; Google account and encrypted OAuth token
+            records are stored server-side while Google is connected.
           </span>
           <span className="block text-slate-300">
             ExamMate&apos;s use and transfer of information received from Google
@@ -4371,6 +4145,24 @@ export default function Home() {
                             </span>
                           )}
 
+                          {!calendarSyncing && (
+                            <p className="max-w-xs text-left text-[10px] leading-relaxed text-slate-300 sm:text-[11px]">
+                              Google grants ExamMate access to events on
+                              calendars you own. ExamMate uses this to create
+                              or update its exam events in your primary
+                              calendar. Selected exam details are sent to
+                              Google. Later routines can sync automatically
+                              while connected; disconnecting does not remove
+                              events.
+                              <Link
+                                href="/privacy"
+                                className="ml-1 text-teal-300 underline underline-offset-2"
+                              >
+                                Privacy details
+                              </Link>
+                            </p>
+                          )}
+
                           {/* Body: Either Circular Loader OR Action Buttons */}
                           {calendarSyncing ? (
                             <div className="flex flex-col items-center justify-center py-2 transition-all duration-300 animate-in fade-in zoom-in-90">
@@ -4459,12 +4251,7 @@ export default function Home() {
                                         return;
                                       }
 
-                                      const requireDrive =
-                                        routineSourceRef.current === "drive";
-                                      const popupResult =
-                                        await startGoogleSignInPopup({
-                                          requireDrive,
-                                        });
+                                      const popupResult = await startGoogleSignInPopup();
 
                                       if (popupResult?.error) {
                                         closeSyncPrompt();

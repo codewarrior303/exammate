@@ -70,7 +70,8 @@ body {
   }
 }
 
-@media (max-width: 1024px), (hover: none) and (pointer: coarse) {
+/* Hide hover-only tooltips on phone-sized screens; keep them available on tablets. */
+@media (max-width: 640px) {
   [role="tooltip"]:not(.google-connect-tooltip) {
     display: none !important;
   }

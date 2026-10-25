@@ -1,6 +1,4 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import { auth } from "@/lib/auth";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export const runtime = "nodejs";
@@ -505,82 +503,6 @@ async function downloadDriveFile(
   };
 }
 
-async function downloadViaGoogleDriveApi(
-  fileId: string,
-  accessToken: string
-): Promise<{ buffer: Uint8Array; ext: "xlsx" | "xls" | "csv" } | { error: string } | null> {
-  let capturedError = "";
-
-  // 1. Direct binary download for uploaded files (.xlsx, .xls, .csv)
-  try {
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&supportsAllDrives=true`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      }
-    );
-    if (res.ok) {
-      const buf = await readBoundedBody(res);
-      if (buf.byteLength > 0 && !isHtmlPayload(buf)) {
-        return { buffer: buf, ext: sniffExtension(buf) };
-      }
-    } else {
-      const errText = new TextDecoder().decode(await readBoundedBody(res, 16 * 1024));
-      try {
-        const parsed = JSON.parse(errText) as { error?: { message?: string; status?: string } };
-        if (parsed.error?.message) {
-          const msg = parsed.error.message;
-          if (msg.includes("Google Drive API has not been used") || msg.includes("is not enabled")) {
-            capturedError = "Google Drive API disabled in Google Cloud Console.";
-          } else if (msg.toLowerCase().includes("insufficient") || msg.toLowerCase().includes("scope")) {
-            capturedError = "Google Drive access denied. Please grant Drive permission.";
-          } else if (res.status === 404 || msg.toLowerCase().includes("not found")) {
-            capturedError = "File not found. Please connect your varsity (@seu.edu.bd) account.";
-          }
-        }
-      } catch {
-        // ignore JSON parse error
-      }
-    }
-  } catch (err) {
-    // Use the public fallback without logging user file IDs or provider responses.
-  }
-
-  // 2. Export endpoint for native Google Sheets
-  try {
-    const res = await fetch(
-      `https://www.googleapis.com/drive/v3/files/${fileId}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet&supportsAllDrives=true`,
-      {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
-      }
-    );
-    if (res.ok) {
-      const buf = await readBoundedBody(res);
-      if (buf.byteLength > 0 && !isHtmlPayload(buf)) {
-        return { buffer: buf, ext: "xlsx" };
-      }
-    } else {
-      await res.body?.cancel();
-    }
-  } catch (err) {
-    // Preserve privacy: do not log user file IDs, tokens, or upstream details.
-  }
-
-  if (capturedError) {
-    return { error: capturedError };
-  }
-
-  return null;
-}
-
 export async function POST(request: Request) {
   if (!isTrustedMutationRequest(request)) {
     return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
@@ -635,53 +557,14 @@ export async function POST(request: Request) {
     );
   }
 
-  // 1. Check if the user has an active Google OAuth session with Drive access
-  let userGoogleToken: string | null = null;
-  try {
-    const reqHeaders = await headers();
-    const session = await auth.api.getSession({ headers: reqHeaders });
-    if (session) {
-      const accounts = await auth.api.listUserAccounts({ headers: reqHeaders });
-      const googleAccount = accounts?.find((account) => account.providerId === "google");
-      if (googleAccount) {
-        const tokenRes = await auth.api.getAccessToken({
-          body: { accountId: googleAccount.id },
-          headers: reqHeaders,
-        });
-        if (tokenRes?.accessToken) {
-          userGoogleToken = tokenRes.accessToken;
-        }
-      }
-    }
-  } catch (authErr) {
-    // Public shared links remain importable when optional OAuth is unavailable.
-  }
-
-  // 2. If Google access token is available, attempt download via official Google Drive API
-  let driveApiError: string | null = null;
-  if (userGoogleToken) {
-    const apiResult = await downloadViaGoogleDriveApi(target.id, userGoogleToken);
-    if (apiResult && "buffer" in apiResult && apiResult.buffer.byteLength > 0 && apiResult.buffer.byteLength <= MAX_BYTES) {
-      return new Response(apiResult.buffer as unknown as BodyInit, {
-        headers: {
-          "Content-Type": "application/octet-stream",
-          "X-File-Name": `drive-routine.${apiResult.ext}`,
-          "Cache-Control": "no-store",
-        },
-      });
-    } else if (apiResult && "error" in apiResult) {
-      driveApiError = apiResult.error;
-    }
-  }
-
-  // 3. Otherwise (or as fallback), attempt public scraper download
+  // Only public or link-shared routines are fetched. Private Drive OAuth is not
+  // requested; users can upload a file directly instead.
   try {
     const result = await downloadDriveFile(target);
     if ("error" in result) {
       return NextResponse.json(
         {
-          error: driveApiError || result.error,
-          requiresGoogleAuth: !userGoogleToken,
+          error: result.error,
         },
         { status: 422 }
       );

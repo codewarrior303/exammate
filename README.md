@@ -31,15 +31,15 @@
 - **Course matching:** Match course codes without case sensitivity and select the sections you take.
 - **Schedule persistence:** Keep a generated routine in the same browser for up to 15 days. Clear it earlier with **Clear My Data**.
 - **Exports:** Download a PDF or PNG, or print a clean schedule.
-- **Google Drive import:** A Drive/Sheets link requires Google sign-in and read-only Drive access so ExamMate can fetch the routine file you linked. It does not need permission to edit or delete Drive files. Uploading an Excel file from your device does not require Drive access.
-- **Optional Google Calendar sync:** Calendar sync is an optional feature. You can generate and use your routine without adding events to Google Calendar. If you choose to sync, ExamMate adds your selected exam events to your primary calendar with reminders: email one day before and pop-ups 12 hours and one hour before, when those reminder times are still in the future at sync time.
-- **Optional Google sign-in:** You do not need an account for local spreadsheet upload or routine generation. Google sign-in is needed only for Google Drive import or if you choose Google Calendar features.
+- **Google Drive link import:** Use a file shared as **Anyone with the link can view**, or upload a spreadsheet from your device. Importing a link does not request Google Drive OAuth access. The server temporarily fetches the linked file and returns it to your browser for parsing; private links require you to change sharing or upload the file.
+- **Optional Google Calendar sync:** Calendar sync is optional. You can use ExamMate without adding events to Google Calendar. After you connect and grant Calendar permission, matched exams can sync automatically when you generate a routine. Events use reminders for email one day before and pop-ups 12 hours and one hour before, when those times are still in the future at sync time.
+- **Optional Google sign-in:** You do not need an account for local spreadsheet upload, public/link-shared Drive import, or routine generation. Google sign-in is only used when you choose Calendar sync.
 
 ## Built with
 
 - Next.js, React, TypeScript, Tailwind CSS, and DaisyUI
 - Better Auth and MongoDB
-- Google Drive API and Google Calendar API
+- Google Calendar API and public Google Drive/Sheets sharing links
 - SheetJS, jsPDF, and HTML Canvas
 
 
@@ -48,11 +48,13 @@
 
 - Uploaded spreadsheet files are parsed in browser memory; the original upload is not stored as a server-side routine file.
 - Generated routines are saved in the browser's local storage for up to 15 days and can be removed with **Clear My Data**.
-- For a Drive link, ExamMate requests read-only Drive access to retrieve the specific routine file identified by the link; it does not need Drive edit or delete access. Local spreadsheet uploads are parsed in the browser and do not use Google Drive.
-- Google Calendar sync is optional. Calendar access is used only for the calendar feature, to create or update ExamMate exam events in the user's primary calendar.
+- A shared Drive link is fetched temporarily by the server, then parsed in the browser. Excel uploads are parsed in the browser and are not uploaded to ExamMate's server.
+- Google Calendar sync is optional. On an explicit sync action, ExamMate requests `openid`, `email`, `profile`, and `calendar.events.owned`. Google grants this Calendar scope the ability to view, create, change, and delete events on calendars the user owns. ExamMate's code uses it to create or update only the ExamMate exam events in the primary calendar; it does not list existing events or delete calendar events. Synced exam details are sent to Google and events remain there after disconnect.
+- Google OAuth account/session records are stored server-side in MongoDB; Better Auth encrypts OAuth tokens at rest. Generated exam routines remain in browser local storage for up to 15 days.
+- Vercel Analytics and Speed Insights are enabled for site usage/performance measurements. See the [Privacy Policy](https://exammate.triizync.com/privacy) for the data categories, purpose, providers, and retention/control details.
 - Google sign-in is optional for local spreadsheet parsing and schedule generation.
 
-See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](https://exammate.triizync.com/terms) for more information.
+See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](https://exammate.triizync.com/terms) for more information. The policy is also linked from the application homepage and describes the Google data accessed, purpose, storage, and sharing.
 
 ## License
 
