@@ -2,6 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { getAuthDatabase } from "@/lib/auth";
 
+export { getClientIp } from "@/lib/client-ip";
+
 const isProduction = process.env.NODE_ENV === "production";
 
 function getAllowedOrigins(): Set<string> {
@@ -55,20 +57,6 @@ export function isTrustedMutationRequest(request: Request): boolean {
   }
 
   return false;
-}
-
-/** Extract the platform-forwarded client IP for rate-limiting. */
-export function getClientIp(request: Request): string {
-  const xForwardedFor = request.headers.get("x-forwarded-for");
-  if (xForwardedFor) {
-    const firstIp = xForwardedFor.split(",")[0].trim();
-    if (firstIp) return firstIp;
-  }
-  const xRealIp = request.headers.get("x-real-ip");
-  if (xRealIp) return xRealIp.trim();
-  const cfConnectingIp = request.headers.get("cf-connecting-ip");
-  if (cfConnectingIp) return cfConnectingIp.trim();
-  return "127.0.0.1";
 }
 
 type RateLimitRecord = {

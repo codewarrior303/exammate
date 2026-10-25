@@ -67,13 +67,13 @@ function resolveBaseURL(): string {
       const vercelHost =
         process.env.VERCEL_PROJECT_PRODUCTION_URL ||
         process.env.VERCEL_URL ||
-        "exammate.vercel.app";
+        "exammate.triizync.com";
       raw = `https://${vercelHost}`;
     }
   }
 
   if (!raw) {
-    return isProduction ? "https://exammate.vercel.app" : "http://localhost:3000";
+    return isProduction ? "https://exammate.triizync.com" : "http://localhost:3000";
   }
 
   // Prepend https:// if protocol is missing
@@ -88,7 +88,7 @@ function resolveBaseURL(): string {
     }
     return url.origin;
   } catch {
-    return isProduction ? "https://exammate.vercel.app" : "http://localhost:3000";
+    return isProduction ? "https://exammate.triizync.com" : "http://localhost:3000";
   }
 }
 
@@ -138,7 +138,6 @@ export const auth = betterAuth({
   trustedOrigins: isProduction
     ? [
         new URL(baseURL).origin,
-        "https://exammate.vercel.app",
         process.env.VERCEL_PROJECT_PRODUCTION_URL
           ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
           : "",
