@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type NavigationRequest = CustomEvent<{ path?: string }>;
+const HOME_RETURN_KEY = "exammate:route-loading-home";
 const POLICY_PATHS = new Set(["/privacy", "/terms", "/license"]);
 
 export function RouteLoadingOverlay() {
@@ -13,16 +14,35 @@ export function RouteLoadingOverlay() {
   const [progress, setProgress] = useState(0);
   const targetPathRef = useRef<string | null>(null);
   const pathnameRef = useRef(pathname);
-  const routeReadyRef = useRef(false);
   const currentProgressRef = useRef(0);
-  const startedAtRef = useRef(0);
   const animationFrameRef = useRef(0);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   useEffect(() => {
     const clearTimers = () => {
       timersRef.current.forEach(clearTimeout);
       timersRef.current = [];
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+    };
+
+    const finishNavigation = () => {
+      if (!targetPathRef.current) return;
+      targetPathRef.current = null;
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      cancelAnimationFrame(animationFrameRef.current);
+      currentProgressRef.current = 100;
+      setProgress(100);
+      timersRef.current.push(
+        setTimeout(() => setFadingOut(true), 100),
+        setTimeout(() => setVisible(false), 280),
+      );
     };
 
     const onNavigationStart = (event: Event) => {
@@ -32,49 +52,40 @@ export function RouteLoadingOverlay() {
       clearTimers();
       cancelAnimationFrame(animationFrameRef.current);
       targetPathRef.current = targetPath;
-      routeReadyRef.current = false;
       currentProgressRef.current = 0;
-      startedAtRef.current = performance.now();
       setVisible(true);
       setFadingOut(false);
       setProgress(0);
 
-      const animate = () => {
-        const targetProgress = routeReadyRef.current ? 100 : 90;
-        const step = routeReadyRef.current
-          ? Math.max(2, (targetProgress - currentProgressRef.current) * 0.24)
-          : Math.max(0.8, (targetProgress - currentProgressRef.current) * 0.2);
-        currentProgressRef.current = Math.min(
-          targetProgress,
-          currentProgressRef.current + step,
-        );
-        const nextProgress = Math.floor(currentProgressRef.current);
-        setProgress((previous) => (previous === nextProgress ? previous : nextProgress));
-
-        if (routeReadyRef.current && currentProgressRef.current >= 99.5) {
-          setProgress(100);
-          const fadeTimer = setTimeout(() => setFadingOut(true), 100);
-          const hideTimer = setTimeout(() => setVisible(false), 360);
-          timersRef.current.push(fadeTimer, hideTimer);
-          return;
+      if (targetPath === "/") {
+        try {
+          sessionStorage.setItem(HOME_RETURN_KEY, "1");
+        } catch {
+          // The route overlay still works when browser storage is unavailable.
         }
-        animationFrameRef.current = requestAnimationFrame(animate);
-      };
-      animationFrameRef.current = requestAnimationFrame(animate);
+      }
 
-      // If navigation fails, release the screen instead of trapping the user.
+      // Progress indicates activity; don't display a fake numeric plateau.
+      progressIntervalRef.current = setInterval(() => {
+        currentProgressRef.current = Math.min(90, currentProgressRef.current + 4);
+        setProgress(currentProgressRef.current);
+      }, 70);
+
+      // A failed navigation must not leave the overlay covering the page.
       timersRef.current.push(
         setTimeout(() => {
-          targetPathRef.current = null;
-          cancelAnimationFrame(animationFrameRef.current);
-          routeReadyRef.current = true;
-          setProgress(100);
-          timersRef.current.push(
-            setTimeout(() => setFadingOut(true), 100),
-            setTimeout(() => setVisible(false), 360),
-          );
+          try {
+            sessionStorage.removeItem(HOME_RETURN_KEY);
+          } catch {
+            // Ignore unavailable browser storage.
+          }
+          finishNavigation();
         }, 12_000),
       );
+
+      if (pathnameRef.current === targetPath) {
+        animationFrameRef.current = requestAnimationFrame(finishNavigation);
+      }
     };
 
     const onPopState = () => {
@@ -99,15 +110,26 @@ export function RouteLoadingOverlay() {
     pathnameRef.current = pathname;
     if (targetPathRef.current !== pathname) return;
 
-    targetPathRef.current = null;
-    const remainingMinimumTime = Math.max(
-      0,
-      180 - (performance.now() - startedAtRef.current),
-    );
-    const readyTimer = setTimeout(() => {
-      routeReadyRef.current = true;
-    }, remainingMinimumTime);
-    timersRef.current.push(readyTimer);
+    timersRef.current.forEach(clearTimeout);
+    timersRef.current = [];
+
+    const readyFrame = requestAnimationFrame(() => {
+      if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+        progressIntervalRef.current = null;
+      }
+      currentProgressRef.current = 100;
+      setProgress(100);
+      timersRef.current.push(
+        setTimeout(() => setFadingOut(true), 100),
+        setTimeout(() => {
+          setVisible(false);
+          targetPathRef.current = null;
+        }, 280),
+      );
+    });
+
+    return () => cancelAnimationFrame(readyFrame);
   }, [pathname]);
 
   if (!visible) return null;
@@ -117,7 +139,7 @@ export function RouteLoadingOverlay() {
       role="status"
       aria-live="polite"
       aria-label="Loading ExamMate page"
-      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center overflow-hidden bg-[#070D12] text-white transition-opacity duration-250 ${
+      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center overflow-hidden bg-[#070D12] text-white transition-opacity duration-200 ease-out ${
         fadingOut ? "pointer-events-none opacity-0" : "opacity-100"
       }`}
     >
@@ -137,15 +159,19 @@ export function RouteLoadingOverlay() {
         <div className="mt-7 w-full">
           <div className="h-1 w-full overflow-hidden rounded-full bg-white/[0.08]">
             <div
-              className="h-full w-full origin-left rounded-full bg-gradient-to-r from-teal-400 to-[#5EEAD4] shadow-[0_0_10px_rgba(94,234,212,0.7)]"
+              className="h-full w-full origin-left rounded-full bg-gradient-to-r from-teal-400 to-[#5EEAD4] shadow-[0_0_10px_rgba(94,234,212,0.7)] transition-transform duration-150 ease-out"
               style={{ transform: `scaleX(${progress / 100})` }}
             />
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
             <span>{progress === 100 ? "Ready" : "Loading page..."}</span>
-            <span className="font-mono tabular-nums font-semibold text-teal-300">
-              {progress}%
-            </span>
+            {progress === 100 ? (
+              <span className="font-mono tabular-nums font-semibold text-teal-300">
+                100%
+              </span>
+            ) : (
+              <span className="font-mono text-teal-300 animate-pulse">···</span>
+            )}
           </div>
         </div>
       </div>

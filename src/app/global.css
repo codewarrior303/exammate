@@ -24,6 +24,26 @@
   box-sizing: border-box;
 }
 
+@keyframes loaderSweep {
+  from {
+    transform: translateX(-120%);
+  }
+  to {
+    transform: translateX(250%);
+  }
+}
+
+.loader-sweep {
+  animation: loaderSweep 1.2s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loader-sweep {
+    animation: none;
+    width: 100%;
+  }
+}
+
 html {
   width: 100%;
   max-width: 100%;

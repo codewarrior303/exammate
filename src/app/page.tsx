@@ -487,6 +487,11 @@ export default function Home() {
   const { data: authSession } = authClient.useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
+  useEffect(() => {
+    document.documentElement.dataset.examMateHomeReady = "true";
+    window.dispatchEvent(new Event("exammate:home-ready"));
+  }, []);
+
   const [uploading, setUploading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [fileName, setFileName] = useState("");

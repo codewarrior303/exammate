@@ -3,6 +3,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import "./global.css";
+import { WebsiteLoader } from "./website-loader";
 import { RouteLoadingOverlay } from "./route-loading-overlay";
 import { PwaRegistration } from "./pwa-registration";
 import { headers } from "next/headers";
@@ -73,6 +74,7 @@ export default async function RootLayout({
       </head>
       <body className={`${plusJakartaSans.variable} ${inter.variable} ${jetBrainsMono.variable}`}>
         <PwaRegistration />
+        <WebsiteLoader />
         <RouteLoadingOverlay />
         {children}
         <Analytics />
