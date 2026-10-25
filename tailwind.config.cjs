@@ -18,9 +18,9 @@ module.exports = {
         },
       },
       fontFamily: {
-        tech: ["'Plus Jakarta Sans'", "'Inter'", "-apple-system", "sans-serif"],
-        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
-        sans: ["'Plus Jakarta Sans'", "'Inter'", "-apple-system", "sans-serif"],
+        tech: ["var(--font-plus-jakarta)", "var(--font-inter)", "-apple-system", "sans-serif"],
+        mono: ["var(--font-jetbrains-mono)", "ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"],
+        sans: ["var(--font-plus-jakarta)", "var(--font-inter)", "-apple-system", "sans-serif"],
       },
     },
   },

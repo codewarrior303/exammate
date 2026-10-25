@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type NavigationRequest = CustomEvent<{ path?: string }>;
-const HOME_RETURN_KEY = "exammate:route-loading-home";
 const POLICY_PATHS = new Set(["/privacy", "/terms", "/license"]);
 
 export function RouteLoadingOverlay() {
@@ -29,14 +28,6 @@ export function RouteLoadingOverlay() {
     const onNavigationStart = (event: Event) => {
       const targetPath = (event as NavigationRequest).detail?.path;
       if (!targetPath) return;
-
-      if (targetPath === "/") {
-        try {
-          sessionStorage.setItem(HOME_RETURN_KEY, "1");
-        } catch {
-          // The route overlay still works when browser storage is unavailable.
-        }
-      }
 
       clearTimers();
       cancelAnimationFrame(animationFrameRef.current);
@@ -75,11 +66,6 @@ export function RouteLoadingOverlay() {
       timersRef.current.push(
         setTimeout(() => {
           targetPathRef.current = null;
-          try {
-            sessionStorage.removeItem(HOME_RETURN_KEY);
-          } catch {
-            // Ignore unavailable browser storage.
-          }
           cancelAnimationFrame(animationFrameRef.current);
           routeReadyRef.current = true;
           setProgress(100);

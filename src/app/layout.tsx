@@ -1,11 +1,33 @@
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
+import { Inter, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import type { Metadata, Viewport } from "next";
 import "./global.css";
-import { WebsiteLoader } from "./website-loader";
 import { RouteLoadingOverlay } from "./route-loading-overlay";
 import { PwaRegistration } from "./pwa-registration";
 import { headers } from "next/headers";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["500", "600", "700", "800"],
+  variable: "--font-plus-jakarta",
+  display: "swap",
+});
+
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-inter",
+  display: "swap",
+});
+
+const jetBrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-jetbrains-mono",
+  display: "swap",
+  preload: false,
+});
 
 export const viewport: Viewport = {
   themeColor: "#0A1118",
@@ -48,20 +70,9 @@ export default async function RootLayout({
       <head>
         <link rel="manifest" href="/manifest.webmanifest" />
         <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link
-          rel="preconnect"
-          href="https://fonts.gstatic.com"
-          crossOrigin="anonymous"
-        />
-        <link
-          rel="stylesheet"
-          href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap"
-        />
       </head>
-      <body>
+      <body className={`${plusJakartaSans.variable} ${inter.variable} ${jetBrainsMono.variable}`}>
         <PwaRegistration />
-        <WebsiteLoader />
         <RouteLoadingOverlay />
         {children}
         <Analytics />
