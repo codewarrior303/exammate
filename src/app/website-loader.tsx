@@ -7,6 +7,8 @@ const HOME_READY_EVENT = "exammate:home-ready";
 
 export function WebsiteLoader() {
   const pathname = usePathname();
+  const initialPathRef = useRef(pathname);
+  const allowInitialReloadLoaderRef = useRef(true);
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fadingOut, setFadingOut] = useState(false);
@@ -15,10 +17,17 @@ export function WebsiteLoader() {
   const documentLoadedRef = useRef(false);
 
   useLayoutEffect(() => {
-    if (pathname !== "/") {
+    // PerformanceNavigationTiming describes the whole document load. It stays
+    // "reload" during later client navigation, so only evaluate it for the
+    // route the document was initially opened on. Otherwise Back to Home can
+    // start this loader on top of the route-navigation loader.
+    if (pathname !== initialPathRef.current) {
+      allowInitialReloadLoaderRef.current = false;
       setVisible(false);
       return;
     }
+
+    if (!allowInitialReloadLoaderRef.current || pathname !== "/") return;
 
     const navigationEntry = performance.getEntriesByType("navigation")[0] as
       | PerformanceNavigationTiming
