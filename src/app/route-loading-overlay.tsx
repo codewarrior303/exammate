@@ -49,7 +49,7 @@ export function RouteLoadingOverlay() {
       <div className="pointer-events-none absolute h-80 w-80 rounded-full bg-teal-400/[0.07] blur-[100px]" />
       <div className="relative z-10 flex flex-col items-center gap-5">
         <img
-          src="/icon.svg"
+          src="/icon.svg?v=2"
           alt=""
           width="48"
           height="48"

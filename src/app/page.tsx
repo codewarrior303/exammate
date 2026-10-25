@@ -2113,26 +2113,25 @@ export default function Home() {
       {/* Main Container */}
       <div className="relative z-10 w-full max-w-[1240px] px-3 pt-3 pb-16 flex flex-col gap-8 sm:px-6 sm:pt-4 sm:pb-20 sm:gap-10 lg:px-8 min-w-0">
         {/* NAVBAR */}
-        <header className="order-1 z-20 w-full rounded-2xl glass-panel border border-teal-500/30 px-2.5 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
+        <header className="order-1 z-20 flex w-full items-center justify-between gap-2 rounded-2xl glass-panel border border-teal-500/30 px-2.5 py-2 sm:px-4 sm:py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           {/* Left: shared ExamMate icon + wordmark */}
-          <button
-            type="button"
-            onClick={() => window.location.reload()}
-            aria-label="Refresh ExamMate homepage"
-            className="flex min-w-0 select-none items-center gap-1.5 border-0 bg-transparent p-0 text-left"
-          >
+          <div className="flex min-w-0 select-none items-center gap-1.5">
             <img
-              src="/icon.svg"
+              src="/icon.svg?v=2"
               alt="ExamMate Logo"
               width="28"
               height="28"
-              draggable={false}
               className="h-6 w-6 shrink-0 sm:h-7 sm:w-7"
             />
-            <span className="whitespace-nowrap text-[17px] font-bold tracking-tight text-white sm:text-xl">
+            <button
+              type="button"
+              onClick={() => window.location.reload()}
+              aria-label="Refresh ExamMate homepage"
+              className="whitespace-nowrap border-0 bg-transparent p-0 text-left text-[17px] font-bold tracking-tight text-white sm:text-xl"
+            >
               Exam<span className="text-neon-mint">Mate</span>
-            </span>
-          </button>
+            </button>
+          </div>
 
           {/* Google connection action follows the dark glass and mint page palette. */}
           <div className="group/google relative mr-0.5 shrink-0 sm:mr-1">
@@ -4376,24 +4375,23 @@ export default function Home() {
           <div className="flex flex-col lg:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center lg:text-left">
             {/* Left: shared ExamMate icon and wordmark */}
             <div className="flex items-center justify-center lg:justify-start">
-              <button
-                type="button"
-                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-                aria-label="Back to top of ExamMate page"
-                className="inline-flex select-none items-center gap-1.5 border-0 bg-transparent p-0 text-left"
-              >
+              <div className="inline-flex select-none items-center gap-1.5">
                 <img
-                  src="/icon.svg"
+                  src="/icon.svg?v=2"
                   alt="ExamMate Logo"
                   width="24"
                   height="24"
-                  draggable={false}
                   className="h-6 w-6"
                 />
-                <span className="font-tech text-lg font-bold text-white tracking-wider">
+                <button
+                  type="button"
+                  onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                  aria-label="Back to top of ExamMate page"
+                  className="border-0 bg-transparent p-0 text-left font-tech text-lg font-bold tracking-wider text-white"
+                >
                   Exam<span className="text-neon-mint">Mate</span>
-                </span>
-              </button>
+                </button>
+              </div>
             </div>
 
             {/* Right: Policy and support links */}

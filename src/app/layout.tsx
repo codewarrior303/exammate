@@ -18,9 +18,9 @@ export const metadata: Metadata = {
   description:
     "Find your exact exam dates and times from the official university routine. Export a clean schedule or sync with Google Calendar in seconds.",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: "/icon.svg?v=2",
+    shortcut: "/icon.svg?v=2",
+    apple: "/icon.svg?v=2",
   },
   verification: {
     google: "aWAddGqb93o49xZGCVOnpxy77vk6BI0MW3Yo7cj-6tU",
@@ -37,7 +37,7 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"

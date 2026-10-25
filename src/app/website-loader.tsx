@@ -268,7 +268,7 @@ export function WebsiteLoader() {
       <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-sm">
         {/* Standalone transparent mark, without a glass badge behind it. */}
         <img
-          src="/icon.svg"
+          src="/icon.svg?v=2"
           alt="ExamMate Logo"
           width="64"
           height="64"
