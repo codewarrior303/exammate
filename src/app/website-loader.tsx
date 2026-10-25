@@ -112,7 +112,7 @@ export function WebsiteLoader() {
       <div className="pointer-events-none absolute h-[380px] w-[380px] -translate-y-6 rounded-full bg-teal-500/[0.08] blur-[100px]" />
       <div className="relative z-10 flex max-w-sm flex-col items-center px-4 text-center">
         <img
-          src="/icon.svg?v=2"
+          src="/icons/exammate-192.png?v=3"
           alt="ExamMate logo"
           width="64"
           height="64"

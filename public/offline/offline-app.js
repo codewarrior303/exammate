@@ -1,5 +1,3 @@
-import { downloadPdf, downloadPng } from "/offline/exporter.js";
-
 const STORAGE_KEY = "examMate:routine:v1";
 const MAX_EXAMS = 2000;
 const workspace = document.querySelector("#offline-workspace");
@@ -114,17 +112,21 @@ if (exams.length) {
 }
 
 pdfButton.addEventListener("click", () => {
-  try {
+  pdfButton.disabled = true;
+  void import("/offline/exporter.js").then(({ downloadPdf }) => {
     downloadPdf(exams);
     statusNode.textContent = "PDF download started.";
-  } catch (error) {
+  }).catch((error) => {
     statusNode.textContent = error instanceof Error ? error.message : "Could not create the PDF.";
-  }
+  }).finally(() => {
+    pdfButton.disabled = false;
+  });
 });
 
 pngButton.addEventListener("click", async () => {
   pngButton.disabled = true;
   try {
+    const { downloadPng } = await import("/offline/exporter.js");
     await downloadPng(exams);
     statusNode.textContent = "PNG download started.";
   } catch (error) {
