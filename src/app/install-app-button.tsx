@@ -28,7 +28,9 @@ export function InstallAppButton() {
       setInstalled(isStandalone);
     };
     const onBeforeInstallPrompt = (event: Event) => {
-      event.preventDefault();
+      // Keep the browser's own install affordance available (for example,
+      // Brave/Chrome's address-bar install icon) while also retaining the
+      // event for the in-page Install button.
       setInstallPrompt(event as InstallPromptEvent);
     };
     const onInstalled = () => {
