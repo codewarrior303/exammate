@@ -64,7 +64,8 @@ export default async function RootLayout({
   // The middleware issues a fresh CSP nonce per request. Reading request
   // headers opts this layout into dynamic rendering so Next.js can attach that
   // nonce to its inline bootstrap scripts instead of caching nonce-less HTML.
-  await headers();
+  const requestHeaders = await headers();
+  const nonce = requestHeaders.get("x-nonce") ?? undefined;
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -73,6 +74,20 @@ export default async function RootLayout({
         <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
       </head>
       <body className={`${plusJakartaSans.variable} ${inter.variable} ${jetBrainsMono.variable}`}>
+        <script
+          nonce={nonce}
+          dangerouslySetInnerHTML={{
+            __html: `(() => {
+              const root = document.documentElement;
+              const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
+              if (isReload) root.setAttribute("data-exammate-refresh", "true");
+              window.addEventListener("beforeunload", () => root.setAttribute("data-exammate-refresh", "true"));
+              window.addEventListener("pageshow", (event) => {
+                if (event.persisted) root.removeAttribute("data-exammate-refresh");
+              });
+            })();`,
+          }}
+        />
         <PwaRegistration />
         <WebsiteLoader />
         <RouteLoadingOverlay />

@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 type NavigationRequest = CustomEvent<{ path?: string }>;
-const HOME_RETURN_KEY = "exammate:route-loading-home";
 const POLICY_PATHS = new Set(["/privacy", "/terms", "/license"]);
 
 export function RouteLoadingOverlay() {
@@ -15,6 +14,7 @@ export function RouteLoadingOverlay() {
   const targetPathRef = useRef<string | null>(null);
   const pathnameRef = useRef(pathname);
   const currentProgressRef = useRef(0);
+  const startedAtRef = useRef(0);
   const animationFrameRef = useRef(0);
   const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -53,32 +53,22 @@ export function RouteLoadingOverlay() {
       cancelAnimationFrame(animationFrameRef.current);
       targetPathRef.current = targetPath;
       currentProgressRef.current = 0;
+      startedAtRef.current = performance.now();
       setVisible(true);
       setFadingOut(false);
       setProgress(0);
 
-      if (targetPath === "/") {
-        try {
-          sessionStorage.setItem(HOME_RETURN_KEY, "1");
-        } catch {
-          // The route overlay still works when browser storage is unavailable.
-        }
-      }
-
-      // Progress indicates activity; don't display a fake numeric plateau.
+      // Show a numeric progress value from 0 while navigation is in flight.
       progressIntervalRef.current = setInterval(() => {
-        currentProgressRef.current = Math.min(90, currentProgressRef.current + 4);
+        const elapsed = performance.now() - startedAtRef.current;
+        const nextProgress = Math.min(90, Math.floor((elapsed / 450) * 90));
+        currentProgressRef.current = Math.max(currentProgressRef.current, nextProgress);
         setProgress(currentProgressRef.current);
-      }, 70);
+      }, 60);
 
       // A failed navigation must not leave the overlay covering the page.
       timersRef.current.push(
         setTimeout(() => {
-          try {
-            sessionStorage.removeItem(HOME_RETURN_KEY);
-          } catch {
-            // Ignore unavailable browser storage.
-          }
           finishNavigation();
         }, 12_000),
       );
@@ -113,23 +103,35 @@ export function RouteLoadingOverlay() {
     timersRef.current.forEach(clearTimeout);
     timersRef.current = [];
 
-    const readyFrame = requestAnimationFrame(() => {
-      if (progressIntervalRef.current) {
-        clearInterval(progressIntervalRef.current);
-        progressIntervalRef.current = null;
-      }
-      currentProgressRef.current = 100;
-      setProgress(100);
-      timersRef.current.push(
-        setTimeout(() => setFadingOut(true), 100),
-        setTimeout(() => {
-          setVisible(false);
-          targetPathRef.current = null;
-        }, 280),
-      );
-    });
+    const minimumVisibleTime = 360;
+    const remainingTime = Math.max(
+      0,
+      minimumVisibleTime - (performance.now() - startedAtRef.current),
+    );
+    const readyTimer = setTimeout(() => {
+      const readyFrame = requestAnimationFrame(() => {
+        if (progressIntervalRef.current) {
+          clearInterval(progressIntervalRef.current);
+          progressIntervalRef.current = null;
+        }
+        currentProgressRef.current = 100;
+        setProgress(100);
+        timersRef.current.push(
+          setTimeout(() => setFadingOut(true), 100),
+          setTimeout(() => {
+            setVisible(false);
+            targetPathRef.current = null;
+          }, 280),
+        );
+      });
+      animationFrameRef.current = readyFrame;
+    }, remainingTime);
+    timersRef.current.push(readyTimer);
 
-    return () => cancelAnimationFrame(readyFrame);
+    return () => {
+      clearTimeout(readyTimer);
+      cancelAnimationFrame(animationFrameRef.current);
+    };
   }, [pathname]);
 
   if (!visible) return null;
@@ -165,13 +167,9 @@ export function RouteLoadingOverlay() {
           </div>
           <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
             <span>{progress === 100 ? "Ready" : "Loading page..."}</span>
-            {progress === 100 ? (
-              <span className="font-mono tabular-nums font-semibold text-teal-300">
-                100%
-              </span>
-            ) : (
-              <span className="font-mono text-teal-300 animate-pulse">···</span>
-            )}
+            <span className="font-mono tabular-nums font-semibold text-teal-300">
+              {progress}%
+            </span>
           </div>
         </div>
       </div>

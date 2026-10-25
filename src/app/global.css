@@ -37,6 +37,21 @@
   animation: loaderSweep 1.2s ease-in-out infinite alternate;
 }
 
+.refresh-loader {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.refresh-loader.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+html[data-exammate-refresh="true"] .refresh-loader {
+  opacity: 1 !important;
+  pointer-events: auto !important;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .loader-sweep {
     animation: none;
