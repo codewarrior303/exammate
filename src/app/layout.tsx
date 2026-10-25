@@ -5,6 +5,7 @@ import "./global.css";
 import { WebsiteLoader } from "./website-loader";
 import { RouteLoadingOverlay } from "./route-loading-overlay";
 import { PwaRegistration } from "./pwa-registration";
+import { headers } from "next/headers";
 
 export const viewport: Viewport = {
   themeColor: "#0A1118",
@@ -37,6 +38,11 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The middleware issues a fresh CSP nonce per request. Reading request
+  // headers opts this layout into dynamic rendering so Next.js can attach that
+  // nonce to its inline bootstrap scripts instead of caching nonce-less HTML.
+  await headers();
+
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
