@@ -10,6 +10,31 @@ const statusNode = document.querySelector("#status");
 const loader = document.querySelector("#offline-loader");
 const progressBar = document.querySelector("#progress-bar");
 const progressValue = document.querySelector("#progress-value");
+let progress = 0;
+let appReady = false;
+
+const progressTimer = window.setInterval(() => {
+  if (progress < 95) {
+    progress = Math.min(95, progress + 5);
+    progressBar.style.transform = `scaleX(${progress / 100})`;
+    progressValue.textContent = `${progress}%`;
+    return;
+  }
+
+  if (!appReady) return;
+  window.clearInterval(progressTimer);
+  progress = 100;
+  progressBar.style.transform = "scaleX(1)";
+  progressValue.textContent = "100%";
+  window.setTimeout(() => {
+    loader.classList.add("done");
+    window.setTimeout(() => loader.remove(), 220);
+  }, 80);
+}, 24);
+
+function finishLoading() {
+  appReady = true;
+}
 
 function validExam(exam) {
   return Boolean(
@@ -65,7 +90,7 @@ function timeLabel(value) {
   return `${hour % 12 || 12}:${match[2]} ${suffix}`;
 }
 
-function renderTable(exams) {
+async function renderTable(exams) {
   const table = document.createElement("table");
   const head = document.createElement("thead");
   const header = document.createElement("tr");
@@ -77,7 +102,8 @@ function renderTable(exams) {
   }
   head.append(header);
   const body = document.createElement("tbody");
-  for (const exam of exams) {
+  for (let index = 0; index < exams.length; index += 1) {
+    const exam = exams[index];
     const row = document.createElement("tr");
     const values = [
       [dateLabel(exam), ""],
@@ -94,22 +120,39 @@ function renderTable(exams) {
       row.append(cell);
     }
     body.append(row);
+    if ((index + 1) % 40 === 0 && index + 1 < exams.length) {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    }
   }
   table.append(head, body);
   tableContainer.replaceChildren(table);
 }
 
-const exams = loadRoutine();
-if (exams.length) {
+let exams = [];
+async function initializeOfflineWorkspace() {
+  exams = loadRoutine();
+  if (!exams.length) {
+    emptyState.hidden = false;
+    finishLoading();
+    return;
+  }
+
   workspace.hidden = false;
   exportActions.hidden = false;
   document.querySelector("#generated-date").textContent = new Intl.DateTimeFormat("en-US", {
     month: "short", day: "numeric", year: "numeric",
   }).format(new Date());
-  renderTable(exams);
-} else {
-  emptyState.hidden = false;
+  await renderTable(exams);
+  finishLoading();
 }
+
+void initializeOfflineWorkspace().catch(() => {
+  workspace.hidden = true;
+  emptyState.hidden = false;
+  emptyState.querySelector("h1").textContent = "Your saved exam table could not be opened";
+  emptyState.querySelector("p").textContent = "Reconnect to the internet and open ExamMate once to refresh its offline files, then try again.";
+  finishLoading();
+});
 
 pdfButton.addEventListener("click", () => {
   pdfButton.disabled = true;
@@ -135,17 +178,3 @@ pngButton.addEventListener("click", async () => {
     pngButton.disabled = false;
   }
 });
-
-let progress = 0;
-const progressTimer = window.setInterval(() => {
-  progress = Math.min(100, progress + 10);
-  progressBar.style.transform = `scaleX(${progress / 100})`;
-  progressValue.textContent = `${progress}%`;
-  if (progress >= 100) {
-    window.clearInterval(progressTimer);
-    window.setTimeout(() => {
-      loader.classList.add("done");
-      window.setTimeout(() => loader.remove(), 220);
-    }, 80);
-  }
-}, 24);

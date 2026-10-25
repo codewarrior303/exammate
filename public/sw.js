@@ -1,4 +1,4 @@
-const CACHE_NAME = "exammate-offline-v8";
+const CACHE_NAME = "exammate-offline-v9";
 const OFFLINE_PAGE = "/offline.html";
 const OFFLINE_ASSETS = [
   OFFLINE_PAGE,
@@ -7,7 +7,7 @@ const OFFLINE_ASSETS = [
   "/icons/exammate-192.png?v=3",
   "/icons/exammate-512.png?v=3",
   "/icons/exammate-maskable-512.png?v=3",
-  "/icon.svg?v=2",
+  "/icon.svg?v=3",
 ];
 const OFFLINE_ASSET_PATHS = new Set(
   OFFLINE_ASSETS.map((asset) => new URL(asset, self.location.origin).pathname),
