@@ -14,6 +14,22 @@ const printButton = document.querySelector("#print-pdf");
 const exportActions = document.querySelector("#export-actions");
 const statusNode = document.querySelector("#status");
 const tableContainer = document.querySelector("#table-container");
+const workspace = document.querySelector("#offline-workspace");
+const privacyPage = document.querySelector("#offline-privacy");
+const termsPage = document.querySelector("#offline-terms");
+const licensePage = document.querySelector("#offline-license");
+
+const currentOfflinePage = location.pathname === "/privacy"
+  ? "privacy"
+  : location.pathname === "/terms"
+    ? "terms"
+    : location.pathname === "/license"
+      ? "license"
+      : "home";
+workspace.hidden = currentOfflinePage !== "home";
+privacyPage.hidden = currentOfflinePage !== "privacy";
+termsPage.hidden = currentOfflinePage !== "terms";
+licensePage.hidden = currentOfflinePage !== "license";
 
 let parsedExams = [];
 let currentExams = [];

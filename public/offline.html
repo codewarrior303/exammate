@@ -12,6 +12,19 @@
       main { width: min(100%, 900px); margin: 0 auto; }
       .brand { display: flex; align-items: center; gap: 10px; margin: 8px 0 30px; color: white; font-size: 20px; font-weight: 700; }
       .brand img { width: 30px; height: 30px; }
+      .offline-nav { display:flex; align-items:center; justify-content:space-between; gap:16px; margin:8px 0 30px; }
+      .offline-nav .brand { margin:0; text-decoration:none; }
+      .nav-links { display:flex; flex-wrap:wrap; align-items:center; justify-content:flex-end; gap:14px; font-size:13px; }
+      .nav-links a, .legal-view a { color:#5eead4; text-decoration:none; }
+      @media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+        .nav-links a:hover, .legal-view a:hover { text-decoration:underline; }
+        button:hover { background: rgba(20,184,166,.2); }
+      }
+      .back-link { display:inline-flex; align-items:center; min-height:40px; padding:9px 13px; border:1px solid rgba(45,212,191,.35); border-radius:10px; color:#d9fffa; text-decoration:none; }
+      .legal-view[hidden], #offline-workspace[hidden] { display:none; }
+      .legal-view h1 { margin-bottom:16px; }
+      .legal-view h2 { margin:20px 0 6px; color:#f8fafc; font-size:16px; }
+      .legal-view ul { padding-left:22px; color:#a5b4c5; line-height:1.65; }
       .panel { padding: 22px; border: 1px solid rgba(45,212,191,.25); border-radius: 18px; background: rgba(17,32,40,.88); box-shadow: 0 16px 42px rgba(0,0,0,.25); }
       h1 { margin: 0 0 8px; font-size: clamp(23px, 5vw, 32px); }
       p { color: #a5b4c5; line-height: 1.6; }
@@ -19,7 +32,6 @@
       .controls { display: grid; gap: 12px; margin: 22px 0; }
       input[type=file], input[type=text] { width: 100%; min-height: 46px; padding: 11px 13px; border: 1px solid rgba(45,212,191,.28); border-radius: 11px; color: #e2e8f0; background: #0d1b22; }
       button { min-height: 42px; padding: 10px 15px; border: 1px solid rgba(45,212,191,.35); border-radius: 10px; color: #d9fffa; background: rgba(20,184,166,.12); font: inherit; font-weight: 600; cursor: pointer; }
-      button:hover { background: rgba(20,184,166,.2); }
       button:disabled { opacity: .5; cursor: not-allowed; }
       .actions { display: flex; flex-wrap: wrap; gap: 10px; }
       .danger { border-color: rgba(251,113,133,.35); color: #fecdd3; background: rgba(244,63,94,.08); }
@@ -29,13 +41,21 @@
       th { color: #5eead4; font-size: 12px; letter-spacing: .08em; }
       td { color: #d6e0e9; font-size: 14px; }
       .note { margin-top: 20px; font-size: 12px; }
-      @media (max-width: 520px) { body { padding-inline: 12px; } .panel { padding: 17px; } .actions button { flex: 1 1 100%; } }
+      @media (max-width: 520px) { body { padding-inline: 12px; } .panel { padding: 17px; } .actions button { flex: 1 1 100%; } .offline-nav { align-items:flex-start; flex-direction:column; margin-bottom:22px; } .nav-links { justify-content:flex-start; gap:12px; } }
     </style>
   </head>
   <body>
     <main>
-      <div class="brand"><img src="/icon.svg?v=2" alt="" /><span>Exam<span style="color:#5eead4">Mate</span></span></div>
-      <section class="panel">
+      <nav class="offline-nav" aria-label="ExamMate links">
+        <a class="brand" href="/" aria-label="ExamMate home"><img src="/icon.svg?v=2" alt="" /><span>Exam<span style="color:#5eead4">Mate</span></span></a>
+        <div class="nav-links">
+          <a href="mailto:exammate.support@gmail.com?subject=ExamMate%20Support">Contact</a>
+          <a href="/privacy">Privacy Policy</a>
+          <a href="/terms">Terms</a>
+          <a href="/license">License</a>
+        </div>
+      </nav>
+      <section id="offline-workspace" class="panel">
         <h1>ExamMate offline</h1>
         <p id="intro">Your saved routine is available on this device. You can also parse an Excel or CSV routine without an internet connection.</p>
         <div id="status" class="status" role="status" aria-live="polite">Loading your saved routine…</div>
@@ -57,6 +77,44 @@
           <button id="print-pdf" type="button" disabled title="Print requires an internet connection. Download PDF works offline.">Print PDF</button>
         </div>
         <p class="note">Routine data stays in this browser's local storage. Excel files are parsed on this device and are not uploaded. PDF and PNG downloads work offline; Print PDF needs an internet connection. Drive import and Google Calendar sync also need internet.</p>
+      </section>
+      <section id="offline-privacy" class="panel legal-view" hidden>
+        <h1>Privacy Policy</h1>
+        <p><strong>Offline copy.</strong> ExamMate processes spreadsheet uploads on your device as data; it does not run embedded macros or scripts. Shared Google Drive/Sheets links are fetched temporarily by the server only when online, then returned to your browser for parsing. Private links are not opened using your Google account, and ExamMate never asks for your Google password.</p>
+        <h2>Routine and account data</h2>
+        <p>Your generated routine is stored in this browser for up to 15 days. Google sign-in is optional. If you connect Calendar, ExamMate uses your basic account identity and the Calendar permission you approve to create or update ExamMate exam events. Google handles event reminders.</p>
+        <p>Calendar sync sends selected course details, faculty if present, exam date/time, reminder settings, and event description to Google Calendar. ExamMate does not read your existing events or delete calendar events. Events already created remain in your calendar after disconnecting.</p>
+        <h2>Storage and providers</h2>
+        <p>Account and encrypted OAuth records are held server-side while your account is connected. ExamMate uses Google for sign-in/calendar, MongoDB for account records, and Vercel for hosting, analytics, and performance measurements. It does not sell Google user data, use it for advertising, or use it to train generalized AI/ML models.</p>
+        <h2>Your choices</h2>
+        <p>Google Calendar sync is optional. You can clear a locally saved routine, disconnect Google, or revoke Google access in your Google Account. This offline policy summary may not include later changes; reconnect to review the <a href="/privacy">current online policy</a>.</p>
+        <p>Questions or deletion requests: <a href="mailto:exammate.support@gmail.com?subject=ExamMate%20Privacy">exammate.support@gmail.com</a></p>
+        <div class="actions"><a href="/" class="back-link">Back to ExamMate</a></div>
+      </section>
+      <section id="offline-terms" class="panel legal-view" hidden>
+        <h1>Terms and Conditions</h1>
+        <p>ExamMate is a free student productivity tool for personal academic planning and convenience.</p>
+        <h2>Academic responsibility</h2>
+        <p>ExamMate parses and organizes routine data you provide. It does not replace official university notices or regulations. Verify your timetable against official Southeast University publications.</p>
+        <h2>Files and Google Drive links</h2>
+        <p>You are responsible for having legitimate access to any spreadsheet or Drive link you provide. Device uploads are parsed locally; shared Drive links require an internet connection and are temporarily fetched to return them to your browser.</p>
+        <h2>Local data and Calendar</h2>
+        <p>Your routine is stored in this browser for up to 15 days and can be removed with Clear My Data. Calendar sync is optional and creates exam events only after you connect Google and authorize the feature.</p>
+        <h2>Service availability</h2>
+        <p>ExamMate is provided as-is. Offline use is limited to the cached workspace, previously saved routines, local file parsing, and local PDF/PNG exports.</p>
+        <div class="actions"><a href="/" class="back-link">Back to ExamMate</a></div>
+      </section>
+      <section id="offline-license" class="panel legal-view" hidden>
+        <h1>ExamMate License</h1>
+        <p><strong>Copyright © 2026 Ahnaf Shahriar Abir. All rights reserved.</strong> This license covers original ExamMate application code, documentation, and visual design owned by the rights holder.</p>
+        <h2>Permission and restrictions</h2>
+        <p>Copying, modifying, publishing, distributing, selling, sublicensing, or creating derivative works from covered ExamMate materials requires prior written permission from the relevant rights holder.</p>
+        <h2>Third-party work and attribution</h2>
+        <p>Third-party dependencies, assets, and contributions remain subject to their own license terms. <a href="https://github.com/tanjim750" target="_blank" rel="noopener noreferrer">Tanjim Abubokor</a> is recognized for sharing the foundational Python routine script that inspired the early project structure; this recognition does not imply ownership or permission to reuse his work.</p>
+        <h2>Application use</h2>
+        <p>Use of the hosted service is subject to the <a href="/terms">Terms and Conditions</a>. ExamMate is provided as-is to the extent permitted by applicable law.</p>
+        <p>Licensing questions: <a href="mailto:exammate.support@gmail.com?subject=ExamMate%20License">exammate.support@gmail.com</a></p>
+        <div class="actions"><a href="/" class="back-link">Back to ExamMate</a></div>
       </section>
     </main>
     <script type="module" src="/offline/offline-app.js"></script>

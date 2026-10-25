@@ -70,8 +70,8 @@ body {
   }
 }
 
-/* Hide hover-only tooltips on phone-sized screens; keep them available on tablets. */
-@media (max-width: 640px) {
+/* Touch layouts do not use hover tooltips, except the Google account tooltip. */
+@media (max-width: 1024px), (hover: none), (pointer: coarse) {
   [role="tooltip"]:not(.google-connect-tooltip) {
     display: none !important;
   }
@@ -183,9 +183,14 @@ textarea,
   touch-action: none;
 }
 
-.custom-scrollbar:hover,
 .custom-scrollbar:focus-within {
   opacity: 1;
+}
+
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .custom-scrollbar:hover {
+    opacity: 1;
+  }
 }
 
 .custom-scrollbar-track {
@@ -215,9 +220,11 @@ textarea,
     transform 750ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.google-connect-button:hover .google-connect-logo {
-  filter: brightness(1.24) contrast(1.1)
-    drop-shadow(0 0 6px rgba(94, 234, 212, 0.4));
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .google-connect-button:hover .google-connect-logo {
+    filter: brightness(1.24) contrast(1.1)
+      drop-shadow(0 0 6px rgba(94, 234, 212, 0.4));
+  }
 }
 
 .google-connect-label {
@@ -309,12 +316,14 @@ textarea,
   );
 }
 
-.google-connect-button--ready:hover:not(:disabled) {
-  border-color: #ccfbf1;
-  background: linear-gradient(110deg, #19373d, #2b5353, #18343a);
-  box-shadow:
-    0 0 24px rgba(94, 234, 212, 0.32),
-    inset 0 1px 0 rgba(226, 255, 249, 0.35);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .google-connect-button--ready:hover:not(:disabled) {
+    border-color: #ccfbf1;
+    background: linear-gradient(110deg, #19373d, #2b5353, #18343a);
+    box-shadow:
+      0 0 24px rgba(94, 234, 212, 0.32),
+      inset 0 1px 0 rgba(226, 255, 249, 0.35);
+  }
 }
 
 .google-connect-button--disabled {
@@ -353,12 +362,14 @@ textarea,
   flex: 0 0 2.25rem !important;
 }
 
-.google-connect-button--connected:hover:not(:disabled) {
-  border-color: #5eead4 !important;
-  box-shadow:
-    0 0 24px rgba(94, 234, 212, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
-  transform: scale(1.06);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .google-connect-button--connected:hover:not(:disabled) {
+    border-color: #5eead4 !important;
+    box-shadow:
+      0 0 24px rgba(94, 234, 212, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.32) !important;
+    transform: scale(1.06);
+  }
 }
 
 .google-connect-button--connected .google-connect-logo {
@@ -570,14 +581,16 @@ textarea,
   }
 }
 
-.group\/google:hover .rocket-vessel--docked {
-  filter: drop-shadow(0 0 14px rgba(94, 234, 212, 1))
-    drop-shadow(0 0 24px rgba(94, 234, 212, 0.75));
-}
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .group\/google:hover .rocket-vessel--docked {
+    filter: drop-shadow(0 0 14px rgba(94, 234, 212, 1))
+      drop-shadow(0 0 24px rgba(94, 234, 212, 0.75));
+  }
 
-.group\/google:hover .rocket-flame-idle .flame-plume {
-  transform: scaleX(1.8) scaleY(1.35) !important;
-  opacity: 1 !important;
+  .group\/google:hover .rocket-flame-idle .flame-plume {
+    transform: scaleX(1.8) scaleY(1.35) !important;
+    opacity: 1 !important;
+  }
 }
 
 /* Rocket Thruster Jet Flame */
@@ -775,14 +788,6 @@ h4,
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glass-panel:hover {
-  border-color: rgba(94, 234, 212, 0.4);
-  box-shadow:
-    0 24px 55px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12),
-    0 0 30px rgba(94, 234, 212, 0.08);
-}
-
 .glass-panel--static,
 .glass-panel--static:hover {
   transition: none;
@@ -806,14 +811,32 @@ h4,
   transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.glass-card:not(.cursor-not-allowed):not([disabled]):hover {
-  position: relative;
-  z-index: 10;
-  border-color: rgba(94, 234, 212, 0.55) !important;
-  box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.55),
-    0 0 24px rgba(94, 234, 212, 0.16),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .glass-panel:hover {
+    border-color: rgba(94, 234, 212, 0.4);
+    box-shadow:
+      0 24px 55px rgba(0, 0, 0, 0.65),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      0 0 30px rgba(94, 234, 212, 0.08);
+  }
+
+  .glass-panel--static:hover {
+    border-color: var(--border-glow);
+    box-shadow:
+      0 20px 50px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08),
+      0 0 25px rgba(94, 234, 212, 0.04);
+  }
+
+  .glass-card:not(.cursor-not-allowed):not([disabled]):hover {
+    position: relative;
+    z-index: 10;
+    border-color: rgba(94, 234, 212, 0.55) !important;
+    box-shadow:
+      0 12px 32px rgba(0, 0, 0, 0.55),
+      0 0 24px rgba(94, 234, 212, 0.16),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15) !important;
+  }
 }
 
 .cursor-not-allowed,
@@ -837,13 +860,15 @@ h4,
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-neon-primary:hover:not(:disabled) {
-  box-shadow:
-    0 0 32px rgba(94, 234, 212, 0.6),
-    0 0 16px rgba(74, 222, 128, 0.4),
-    0 4px 16px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.95);
-  filter: brightness(1.05);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .btn-neon-primary:hover:not(:disabled) {
+    box-shadow:
+      0 0 32px rgba(94, 234, 212, 0.6),
+      0 0 16px rgba(74, 222, 128, 0.4),
+      0 4px 16px rgba(0, 0, 0, 0.35),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
+    filter: brightness(1.05);
+  }
 }
 
 .btn-neon-primary:active:not(:disabled) {
@@ -872,13 +897,15 @@ h4,
   transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.btn-ghost-glass:hover:not(:disabled) {
-  border-color: rgba(94, 234, 212, 0.65);
-  color: #5eead4;
-  background: rgba(20, 42, 54, 0.88);
-  box-shadow:
-    0 0 20px rgba(94, 234, 212, 0.25),
-    0 4px 16px rgba(0, 0, 0, 0.35);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .btn-ghost-glass:hover:not(:disabled) {
+    border-color: rgba(94, 234, 212, 0.65);
+    color: #5eead4;
+    background: rgba(20, 42, 54, 0.88);
+    box-shadow:
+      0 0 20px rgba(94, 234, 212, 0.25),
+      0 4px 16px rgba(0, 0, 0, 0.35);
+  }
 }
 
 .btn-ghost-glass:active:not(:disabled) {
@@ -937,8 +964,10 @@ h4,
   -webkit-backface-visibility: hidden;
 }
 
-.iso-card-main:hover {
-  transform: rotateX(33deg) rotateZ(-12deg) translateY(-8px);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .iso-card-main:hover {
+    transform: rotateX(33deg) rotateZ(-12deg) translateY(-8px);
+  }
 }
 
 .iso-card-sub {
@@ -985,11 +1014,13 @@ h4,
   transition: all 0.3s ease;
 }
 
-.iso-pedestal:hover {
-  transform: rotateX(50deg) rotateZ(-24deg) translateY(-6px);
-  box-shadow:
-    0 20px 30px rgba(0, 0, 0, 0.6),
-    0 0 25px rgba(94, 234, 212, 0.4);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .iso-pedestal:hover {
+    transform: rotateX(50deg) rotateZ(-24deg) translateY(-6px);
+    box-shadow:
+      0 20px 30px rgba(0, 0, 0, 0.6),
+      0 0 25px rgba(94, 234, 212, 0.4);
+  }
 }
 
 .iso-pedestal-text {
@@ -1111,13 +1142,15 @@ h4,
   will-change: transform, box-shadow, border-color;
 }
 
-.empty-results-card:hover {
-  transform: translateY(-4px);
-  border-color: rgba(94, 234, 212, 0.45);
-  box-shadow:
-    0 22px 48px rgba(0, 0, 0, 0.65),
-    inset 0 1px 0 rgba(255, 255, 255, 0.15),
-    0 0 20px rgba(94, 234, 212, 0.14);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .empty-results-card:hover {
+    transform: translateY(-4px);
+    border-color: rgba(94, 234, 212, 0.45);
+    box-shadow:
+      0 22px 48px rgba(0, 0, 0, 0.65),
+      inset 0 1px 0 rgba(255, 255, 255, 0.15),
+      0 0 20px rgba(94, 234, 212, 0.14);
+  }
 }
 
 @media (max-width: 480px) {
@@ -1520,8 +1553,10 @@ details > summary::-webkit-details-marker {
   transition: transform 0.22s cubic-bezier(0.34, 1.25, 0.64, 1);
 }
 
-.group\/remove-btn:hover .trash-lid {
-  transform: rotate(-24deg) translateY(-1px);
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .group\/remove-btn:hover .trash-lid {
+    transform: rotate(-24deg) translateY(-1px);
+  }
 }
 
 
@@ -1533,9 +1568,11 @@ details > summary::-webkit-details-marker {
     box-shadow 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.routine-table tbody tr:hover {
-  background-color: rgba(94, 234, 212, 0.08) !important;
-  box-shadow: inset 3px 0 0 0 #5eead4 !important;
+@media (hover: hover) and (pointer: fine) and (min-width: 1025px) {
+  .routine-table tbody tr:hover {
+    background-color: rgba(94, 234, 212, 0.08) !important;
+    box-shadow: inset 3px 0 0 0 #5eead4 !important;
+  }
 }
 
 /* Skeleton Wave Animation */
@@ -1565,23 +1602,6 @@ details > summary::-webkit-details-marker {
     opacity: 1 !important;
     transform: none !important;
   }
-}
-
-/* App loader overlay defaults to hidden unless app-loading is active on html */
-.app-loader-overlay {
-  opacity: 0;
-  pointer-events: none;
-}
-
-html.app-loading .app-loader-overlay {
-  opacity: 1 !important;
-  pointer-events: auto !important;
-}
-
-/* Prevent flash of unhydrated/empty content during page reload or slow connection */
-html.app-loading body > *:not([role="status"]) {
-  opacity: 0 !important;
-  pointer-events: none !important;
 }
 
 /* Morphing Celestial Sparkle Animation for Generate Button */

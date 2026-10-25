@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import PolicyPage from "../policy-page";
+import { SupportEmailLink } from "../support-email-link";
 
 export const metadata: Metadata = {
   title: "Privacy Policy | ExamMate",
@@ -113,12 +114,9 @@ export default function PrivacyPage() {
             We use reasonable technical and organizational safeguards, but no
             internet service can guarantee absolute security. To request
             deletion of server-side account data, contact{" "}
-            <a
+            <SupportEmailLink
               className="text-teal-300 underline underline-offset-4"
-              href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=exammate.support%40gmail.com"
-            >
-              exammate.support@gmail.com
-            </a>
+            />
             . Clearing local routine data and disconnecting Google are separate
             actions.
           </p>
@@ -156,12 +154,9 @@ export default function PrivacyPage() {
             data, this policy will be updated before the changed use begins and
             any required Google authorization will be requested. Questions or
             deletion requests: {" "}
-            <a
+            <SupportEmailLink
               className="text-teal-300 underline underline-offset-4"
-              href="https://mail.google.com/mail/?view=cm&amp;fs=1&amp;to=exammate.support%40gmail.com"
-            >
-              exammate.support@gmail.com
-            </a>
+            />
             .
           </p>
         </section>

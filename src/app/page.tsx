@@ -8,7 +8,6 @@ import React, {
   useState,
 } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowRight,
   CalendarDays,
@@ -36,6 +35,8 @@ import {
   X,
 } from "lucide-react";
 import { authClient } from "@/lib/auth-client";
+import { InstallAppButton } from "./install-app-button";
+import { RouteLoadingLink } from "./route-loading-link";
 import {
   formatDate,
   formatTime,
@@ -483,12 +484,6 @@ function SupersonicRocketCraft({ isDocked }: { isDocked?: boolean }) {
 }
 
 export default function Home() {
-  const router = useRouter();
-
-  function navigateWithFeedback(path: string) {
-    window.dispatchEvent(new Event("exammate:navigate"));
-    router.push(path);
-  }
   const { data: authSession } = authClient.useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
 
@@ -2668,6 +2663,7 @@ export default function Home() {
                   <span>Generate routine</span>
                   <ArrowRight className="w-3.5 h-3.5" />
                 </a>
+                <InstallAppButton />
               </div>
             </div>
 
@@ -4444,27 +4440,26 @@ export default function Home() {
                 </span>
               </span>
               <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-teal-300/70" />
-              <button type="button" onClick={() => navigateWithFeedback("/privacy")} className="border-0 bg-transparent p-0 text-inherit hover:text-teal-300 transition-colors">
+              <Link href="/privacy" className="border-0 bg-transparent p-0 text-inherit hover:text-teal-300 transition-colors">
                 Privacy Policy
-              </button>
+              </Link>
               <span aria-hidden="true" className="h-1 w-1 shrink-0 rounded-full bg-teal-300/70" />
-              <button type="button" onClick={() => navigateWithFeedback("/terms")} className="border-0 bg-transparent p-0 text-inherit hover:text-teal-300 transition-colors">
+              <Link href="/terms" className="border-0 bg-transparent p-0 text-inherit hover:text-teal-300 transition-colors">
                 Terms
-              </button>
+              </Link>
             </div>
           </div>
 
           {/* Centered credit line */}
           <div className="pb-1 text-center text-[11px] text-[#64748B]">
             © {new Date().getFullYear()}{" "}
-            <button
-              type="button"
-              onClick={() => navigateWithFeedback("/license")}
+            <RouteLoadingLink
+              href="/license"
               className="rounded-sm border-0 bg-transparent p-0 text-inherit transition-colors hover:text-teal-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400"
-              aria-label="ExamMate License"
+              ariaLabel="ExamMate License"
             >
               ExamMate
-            </button>{" "}
+            </RouteLoadingLink>{" "}
             <span aria-hidden="true" className="mx-1.5 inline-block h-1 w-1 shrink-0 rounded-full bg-teal-300/70 align-middle" />
             Made by{" "}
             <button

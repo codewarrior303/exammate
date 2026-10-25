@@ -1,265 +1,97 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 
 export function WebsiteLoader() {
   const pathname = usePathname();
-  const [shouldShow, setShouldShow] = useState(false);
   const [mounted, setMounted] = useState(true);
   const [fadingOut, setFadingOut] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const progressBarRef = useRef<HTMLDivElement | null>(null);
+  const progressTextRef = useRef<HTMLSpanElement | null>(null);
+  const progressStatusRef = useRef<HTMLSpanElement | null>(null);
 
   useEffect(() => {
-    // Only show on homepage, never on /privacy, /terms, etc.
     if (pathname !== "/") {
-      if (typeof document !== "undefined") {
-        document.documentElement.classList.remove("app-loading");
-      }
       setMounted(false);
       return;
     }
 
-    // 1. Detect if the user refreshed / reloaded the page
-    const navEntries =
-      typeof performance !== "undefined"
-        ? performance.getEntriesByType("navigation")
-        : [];
-    const navTiming = navEntries[0] as PerformanceNavigationTiming | undefined;
-    const isReload =
-      navTiming?.type === "reload" ||
-      (typeof window !== "undefined" &&
-        (window.performance as unknown as { navigation?: { type?: number } })
-          ?.navigation?.type === 1);
-
-    // 2. Detect if user has a slow network / slow Wi-Fi
-    const nav = typeof navigator !== "undefined" ? navigator : null;
-    const conn =
-      nav &&
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ((nav as any).connection ||
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (nav as any).mozConnection ||
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (nav as any).webkitConnection);
-
-    const effectiveType: string = conn?.effectiveType || "4g";
-    const downlink: number =
-      typeof conn?.downlink === "number" ? conn.downlink : 10;
-    const rtt: number = typeof conn?.rtt === "number" ? conn.rtt : 50;
-    const saveData: boolean = Boolean(conn?.saveData);
-
-    const isSlowConnection =
-      saveData ||
-      effectiveType === "2g" ||
-      effectiveType === "slow-2g" ||
-      effectiveType === "3g" ||
-      downlink < 1.8 ||
-      rtt > 220;
-
-    let dismissTimeout: ReturnType<typeof setTimeout> | null = null;
-    let unmountTimeout: ReturnType<typeof setTimeout> | null = null;
-    let animationFrameId: number | null = null;
-    let fallbackCheckTimer: ReturnType<typeof setTimeout> | null = null;
-    let isComplete = false;
-
-    const startLoaderAnimation = () => {
-      setShouldShow(true);
-
-      const isUltraFast = (downlink >= 8 || effectiveType === "4g") && rtt < 80;
-      const rateMultiplier = isUltraFast
-        ? 1.8
-        : isSlowConnection
-          ? 0.5
-          : 1.2;
-
-      let currentVal = 0;
-      let targetCeiling = 35;
-      let observer: PerformanceObserver | null = null;
-      let loadedResources = 0;
-
-      if (typeof PerformanceObserver !== "undefined") {
-        try {
-          observer = new PerformanceObserver((list) => {
-            loadedResources += list.getEntries().length;
-            targetCeiling = Math.min(
-              95,
-              Math.max(targetCeiling, 35 + loadedResources * 7),
-            );
-          });
-          observer.observe({ type: "resource", buffered: true });
-        } catch {
-          // ignore
-        }
-      }
-
-      const completeAndDismiss = () => {
-        if (isComplete) return;
-        isComplete = true;
-        if (observer) {
-          try {
-            observer.disconnect();
-          } catch {
-            // ignore
-          }
-        }
-
-        const finishStep = () => {
-          currentVal += Math.max(4, (100 - currentVal) * 0.4);
-          if (currentVal >= 99.5) {
-            currentVal = 100;
-            setProgress(100);
-
-            dismissTimeout = setTimeout(() => {
-              setFadingOut(true);
-              if (typeof document !== "undefined") {
-                document.documentElement.classList.remove("app-loading");
-              }
-              unmountTimeout = setTimeout(() => {
-                setMounted(false);
-              }, 400);
-            }, 120);
-          } else {
-            setProgress(Math.round(currentVal));
-            animationFrameId = requestAnimationFrame(finishStep);
-          }
-        };
-
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        animationFrameId = requestAnimationFrame(finishStep);
-      };
-
-      if (typeof document !== "undefined" && document.readyState === "complete") {
-        targetCeiling = 100;
-        completeAndDismiss();
-      }
-
-      const onDomReady = () => {
-        targetCeiling = Math.max(targetCeiling, 85);
-      };
-
-      const onLoad = () => {
-        targetCeiling = 100;
-        completeAndDismiss();
-      };
-
-      if (typeof document !== "undefined") {
-        document.addEventListener("DOMContentLoaded", onDomReady);
-      }
-      if (typeof window !== "undefined") {
-        window.addEventListener("load", onLoad);
-      }
-
-      let lastTime = performance.now();
-
-      const loop = (now: number) => {
-        if (isComplete) return;
-
-        const delta = (now - lastTime) / 16.6;
-        lastTime = now;
-
-        if (typeof document !== "undefined") {
-          if (document.readyState === "complete") {
-            completeAndDismiss();
-            return;
-          } else if (document.readyState === "interactive") {
-            targetCeiling = Math.max(targetCeiling, 85);
-          }
-        }
-
-        if (currentVal < targetCeiling) {
-          const remaining = targetCeiling - currentVal;
-          const step = Math.max(0.2, remaining * 0.08) * rateMultiplier * delta;
-          currentVal = Math.min(targetCeiling, currentVal + step);
-          setProgress(Math.round(currentVal));
-        }
-
-        animationFrameId = requestAnimationFrame(loop);
-      };
-
-      animationFrameId = requestAnimationFrame(loop);
-
-      const failsafe = setTimeout(
-        () => {
-          if (!isComplete) {
-            completeAndDismiss();
-          }
-        },
-        isSlowConnection ? 4500 : 3000,
-      );
-
-      return () => {
-        if (typeof document !== "undefined") {
-          document.removeEventListener("DOMContentLoaded", onDomReady);
-        }
-        if (typeof window !== "undefined") {
-          window.removeEventListener("load", onLoad);
-        }
-        if (observer) {
-          try {
-            observer.disconnect();
-          } catch {
-            // ignore
-          }
-        }
-        if (animationFrameId) cancelAnimationFrame(animationFrameId);
-        clearTimeout(failsafe);
-        if (dismissTimeout) clearTimeout(dismissTimeout);
-        if (unmountTimeout) clearTimeout(unmountTimeout);
-      };
-    };
-
-    let cleanupFn: (() => void) | undefined;
-
-    if (isReload || isSlowConnection) {
-      cleanupFn = startLoaderAnimation();
-    } else {
-      if (typeof document !== "undefined" && document.readyState === "complete") {
-        if (typeof document !== "undefined") {
-          document.documentElement.classList.remove("app-loading");
-        }
+    // A policy-page return uses RouteLoadingOverlay; avoid stacking the
+    // homepage's initial-load overlay on top of that route transition.
+    try {
+      if (sessionStorage.getItem("exammate:route-loading-home") === "1") {
+        sessionStorage.removeItem("exammate:route-loading-home");
         setMounted(false);
-      } else {
-        fallbackCheckTimer = setTimeout(() => {
-          if (
-            typeof document !== "undefined" &&
-            document.readyState !== "complete"
-          ) {
-            cleanupFn = startLoaderAnimation();
-          } else {
-            if (typeof document !== "undefined") {
-              document.documentElement.classList.remove("app-loading");
-            }
-            setMounted(false);
-          }
-        }, 180);
+        return;
       }
+    } catch {
+      // Continue with the normal homepage loader if storage is unavailable.
     }
 
-    return () => {
-      if (typeof document !== "undefined") {
-        document.documentElement.classList.remove("app-loading");
+    setMounted(true);
+    setFadingOut(false);
+    const progressBar = progressBarRef.current;
+    const progressText = progressTextRef.current;
+    const progressStatus = progressStatusRef.current;
+    if (!progressBar || !progressText || !progressStatus) return;
+
+    let animationFrameId = 0;
+    let fadeTimeout: ReturnType<typeof setTimeout> | undefined;
+    let unmountTimeout: ReturnType<typeof setTimeout> | undefined;
+    const startedAt = performance.now();
+    const duration = 420;
+    progressBar.style.transform = "scaleX(0)";
+    const barAnimation = progressBar.animate(
+      [{ transform: "scaleX(0)" }, { transform: "scaleX(1)" }],
+      { duration, easing: "linear", fill: "forwards" },
+    );
+    progressText.textContent = "0%";
+    progressStatus.textContent = "Loading workspace...";
+
+    const animate = (now: number) => {
+      // Keep the visual work outside React's render cycle. The bar and its
+      // percentage follow the same deterministic timeline, independent of network.
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const percentage = Math.floor(progress * 100);
+      progressText.textContent = `${percentage}%`;
+
+      if (progress >= 1) {
+        progressBar.style.transform = "scaleX(1)";
+        barAnimation.cancel();
+        progressText.textContent = "100%";
+        progressStatus.textContent = "Ready";
+        fadeTimeout = setTimeout(() => {
+          setFadingOut(true);
+          unmountTimeout = setTimeout(() => setMounted(false), 260);
+        }, 100);
+        return;
       }
-      if (fallbackCheckTimer) clearTimeout(fallbackCheckTimer);
-      if (cleanupFn) cleanupFn();
+
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    animationFrameId = requestAnimationFrame(animate);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      barAnimation.cancel();
+      if (fadeTimeout) clearTimeout(fadeTimeout);
+      if (unmountTimeout) clearTimeout(unmountTimeout);
     };
   }, [pathname]);
 
-  if (!mounted) return null;
-
-  const isFull = progress >= 100;
+  if (pathname !== "/" || !mounted) return null;
 
   return (
     <div
       role="status"
       aria-live="polite"
       aria-label="Loading ExamMate"
-      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#070D12] text-white select-none overflow-hidden transition-all duration-400 ease-out app-loader-overlay ${
+      className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#070D12] text-white select-none overflow-hidden transition-all duration-250 ease-out ${
         fadingOut
           ? "opacity-0 scale-[1.02] pointer-events-none"
-          : shouldShow
-            ? "opacity-100 scale-100 pointer-events-auto"
-            : ""
+          : "opacity-100 scale-100 pointer-events-auto"
       }`}
     >
       {/* Subtle modern radial ambient light */}
@@ -281,22 +113,23 @@ export function WebsiteLoader() {
           Exam<span className="text-[#5EEAD4]">Mate</span>
         </h1>
 
-        {/* Minimal, Sleek Progress Bar (Linear / Vercel style) */}
+        {/* Minimal progress indicator, animated independently of React renders. */}
         <div className="mt-7 w-56 sm:w-64">
           <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/[0.08]">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-teal-400 to-[#5EEAD4] shadow-[0_0_10px_rgba(94,234,212,0.7)] transition-[width] duration-150 ease-out"
-              style={{ width: `${progress}%` }}
+              ref={progressBarRef}
+              className="h-full w-full origin-left rounded-full bg-gradient-to-r from-teal-400 to-[#5EEAD4] shadow-[0_0_10px_rgba(94,234,212,0.7)]"
+              style={{ transform: "scaleX(0)" }}
             />
           </div>
 
           {/* Understated Status & Percentage */}
           <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
-            <span className="font-normal text-slate-400 text-[11px] sm:text-xs">
-              {isFull ? "Ready" : "Loading workspace..."}
+            <span ref={progressStatusRef} className="font-normal text-slate-400 text-[11px] sm:text-xs">
+              Loading workspace...
             </span>
-            <span className="font-mono tabular-nums text-[11px] sm:text-xs font-semibold text-teal-300">
-              {progress}%
+            <span ref={progressTextRef} className="font-mono tabular-nums text-[11px] sm:text-xs font-semibold text-teal-300">
+              0%
             </span>
           </div>
         </div>
