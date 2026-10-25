@@ -10,9 +10,15 @@
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
   "orientation": "any",
-  "background_color": "#0A1118",
+  "background_color": "#070D12",
   "theme_color": "#0A1118",
   "categories": ["education", "productivity"],
+  "related_applications": [
+    {
+      "platform": "webapp",
+      "url": "https://exammate.triizync.com/manifest.webmanifest"
+    }
+  ],
   "prefer_related_applications": false,
   "icons": [
     {

@@ -1,4 +1,4 @@
-const CACHE_NAME = "exammate-offline-v6";
+const CACHE_NAME = "exammate-offline-v7";
 const OFFLINE_PAGE = "/offline.html";
 const OFFLINE_ASSETS = [
   OFFLINE_PAGE,

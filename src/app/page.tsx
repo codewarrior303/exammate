@@ -2924,10 +2924,6 @@ export default function Home() {
                         Clear the link below to upload a file instead.
                       </p>
                     ) : null}
-                    <p className="text-[10px] leading-relaxed text-slate-500">
-                      Spreadsheet files are read on this device; macros are not
-                      run. Only upload files from sources you trust.
-                    </p>
                   </div>
 
                   {/* OPTION 2: Google Drive share-link import */}
@@ -3201,10 +3197,8 @@ export default function Home() {
                         file&quot; above to use a link instead.
                       </p>
                     ) : (
-                      <p className="text-[11px] leading-relaxed text-[#94A3B8]">
-                        Paste a Google Drive/Sheets link, enter course codes,
-                        then press Generate. Use a link shared by someone you
-                        trust; never paste a password or sign-in link.
+                      <p className="text-[11px] text-[#94A3B8]">
+                        Paste link, enter course codes, then press Generate.
                       </p>
                     )}
                   </div>

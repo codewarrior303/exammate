@@ -9,6 +9,10 @@ export function WebsiteLoader() {
   const pathname = usePathname();
   const initialPathRef = useRef(pathname);
   const allowInitialReloadLoaderRef = useRef(true);
+  const installedAppLaunchRef = useRef(
+    typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("source") === "installed-app",
+  );
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
   const [fadingOut, setFadingOut] = useState(false);
@@ -32,7 +36,7 @@ export function WebsiteLoader() {
     const navigationEntry = performance.getEntriesByType("navigation")[0] as
       | PerformanceNavigationTiming
       | undefined;
-    if (navigationEntry?.type !== "reload") {
+    if (navigationEntry?.type !== "reload" && !installedAppLaunchRef.current) {
       setVisible(false);
       return;
     }

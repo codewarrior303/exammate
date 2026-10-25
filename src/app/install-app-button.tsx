@@ -8,6 +8,12 @@ type InstallPromptEvent = Event & {
   userChoice?: Promise<{ outcome: "accepted" | "dismissed"; platform: string }>;
 };
 
+type RelatedAppsNavigator = Navigator & {
+  getInstalledRelatedApps?: () => Promise<Array<{ platform: string }>>;
+};
+
+const INSTALLED_STORAGE_KEY = "examMate:pwa-installed:v1";
+
 export function InstallAppButton() {
   const [installPrompt, setInstallPrompt] = useState<InstallPromptEvent | null>(null);
   const [showHelp, setShowHelp] = useState(false);
@@ -22,10 +28,35 @@ export function InstallAppButton() {
     setPlatform(isIos ? "ios" : isAndroid ? "android" : isFirefox ? "firefox" : "other");
 
     const standaloneQuery = window.matchMedia("(display-mode: standalone)");
+    const checkRelatedInstallation = async () => {
+      try {
+        const getInstalledRelatedApps = (navigator as RelatedAppsNavigator)
+          .getInstalledRelatedApps;
+        const relatedApps = await getInstalledRelatedApps?.call(navigator);
+        if (relatedApps?.some((app) => app.platform === "webapp")) {
+          setInstalled(true);
+          try {
+            window.localStorage.setItem(INSTALLED_STORAGE_KEY, "true");
+          } catch {
+            // The current page still hides its install button.
+          }
+        }
+      } catch {
+        // This optional browser API is not supported in every install surface.
+      }
+    };
     const updateInstalled = () => {
       const isStandalone = standaloneQuery.matches ||
         ("standalone" in navigator && Boolean((navigator as Navigator & { standalone?: boolean }).standalone));
-      setInstalled(isStandalone);
+      let wasInstalled = false;
+      try {
+        wasInstalled = window.localStorage.getItem(INSTALLED_STORAGE_KEY) === "true";
+        if (isStandalone) window.localStorage.setItem(INSTALLED_STORAGE_KEY, "true");
+      } catch {
+        // Standalone mode is still detectable when browser storage is blocked.
+      }
+      setInstalled(isStandalone || wasInstalled);
+      void checkRelatedInstallation();
     };
     const onBeforeInstallPrompt = (event: Event) => {
       // Keep the browser's own install affordance available (for example,
@@ -34,6 +65,11 @@ export function InstallAppButton() {
       setInstallPrompt(event as InstallPromptEvent);
     };
     const onInstalled = () => {
+      try {
+        window.localStorage.setItem(INSTALLED_STORAGE_KEY, "true");
+      } catch {
+        // Keep the current tab state even when browser storage is unavailable.
+      }
       setInstalled(true);
       setInstallPrompt(null);
       setShowHelp(false);
@@ -42,10 +78,12 @@ export function InstallAppButton() {
     updateInstalled();
     window.addEventListener("beforeinstallprompt", onBeforeInstallPrompt);
     window.addEventListener("appinstalled", onInstalled);
+    window.addEventListener("focus", updateInstalled);
     standaloneQuery.addEventListener("change", updateInstalled);
     return () => {
       window.removeEventListener("beforeinstallprompt", onBeforeInstallPrompt);
       window.removeEventListener("appinstalled", onInstalled);
+      window.removeEventListener("focus", updateInstalled);
       standaloneQuery.removeEventListener("change", updateInstalled);
     };
   }, []);
@@ -63,8 +101,7 @@ export function InstallAppButton() {
     try {
       await prompt.prompt();
       const result = await prompt.userChoice;
-      if (result?.outcome === "accepted") setInstalled(true);
-      else setShowHelp(true);
+      if (result?.outcome !== "accepted") setShowHelp(true);
     } catch {
       setShowHelp(true);
     }
