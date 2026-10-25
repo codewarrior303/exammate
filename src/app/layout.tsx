@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import "./global.css";
 import { WebsiteLoader } from "./website-loader";
 import { RouteLoadingOverlay } from "./route-loading-overlay";
+import { PwaRegistration } from "./pwa-registration";
 
 export const viewport: Viewport = {
   themeColor: "#0A1118",
@@ -15,12 +16,17 @@ export const viewport: Viewport = {
 export const metadata: Metadata = {
   title: "ExamMate | Build your exam table in minutes",
   applicationName: "ExamMate",
+  appleWebApp: {
+    capable: true,
+    title: "ExamMate",
+    statusBarStyle: "black-translucent",
+  },
   description:
     "Find your exact exam dates and times from the official university routine. Export a clean schedule or sync with Google Calendar in seconds.",
   icons: {
     icon: "/icon.svg?v=2",
     shortcut: "/icon.svg?v=2",
-    apple: "/icon.svg?v=2",
+    apple: "/icons/exammate-180.png",
   },
   verification: {
     google: "aWAddGqb93o49xZGCVOnpxy77vk6BI0MW3Yo7cj-6tU",
@@ -69,6 +75,7 @@ export default async function RootLayout({
         />
       </head>
       <body>
+        <PwaRegistration />
         <WebsiteLoader />
         <RouteLoadingOverlay />
         {children}

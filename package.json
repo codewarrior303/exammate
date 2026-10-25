@@ -6,6 +6,8 @@
     "dev": "next dev",
     "dev:all": "next dev",
     "build": "next build",
+    "build:offline-parser": "esbuild src/lib/parsers/excel.ts --bundle --format=esm --platform=browser --target=es2020 --alias:@=./src --outfile=public/offline/excel-parser.js",
+    "build:offline-exporter": "esbuild src/lib/offline/exporter.ts --bundle --format=esm --platform=browser --target=es2020 --alias:@=./src --outfile=public/offline/exporter.js",
     "start": "next start"
   },
   "dependencies": {

@@ -2019,7 +2019,11 @@ export default function Home() {
             For a shared link, ExamMate&apos;s server temporarily fetches and
             returns the linked file to your browser for parsing. We do not
             intentionally retain the file or link in our application database.
-            See the Privacy Policy for details.
+            Only paste a link copied from drive.google.com, docs.google.com, or
+            sheets.google.com. Never enter your Google password or share a
+            sign-in link here. Review files from people you trust; uploaded
+            spreadsheets are parsed as data and macros are not run. See the
+            Privacy Policy for details.
           </span>
         </span>
       ),
@@ -2027,7 +2031,7 @@ export default function Home() {
     {
       question: "Which file formats can I upload?",
       answer:
-        "Excel files (.xlsx, .xls, .xlsm, .csv) and Google Drive links are fully supported. The parser automatically detects exam dates, shift times, course codes, titles, and faculty details.",
+        "Excel files (.xlsx, .xls, .xlsm, .csv) and Google Drive links are supported. ExamMate reads spreadsheet cell data only; it does not run spreadsheet macros or scripts. Only use routine files from sources you trust.",
     },
     {
       question: "Can I sync my schedule to Google Calendar?",
@@ -2919,6 +2923,10 @@ export default function Home() {
                         Clear the link below to upload a file instead.
                       </p>
                     ) : null}
+                    <p className="text-[10px] leading-relaxed text-slate-500">
+                      Spreadsheet files are read on this device; macros are not
+                      run. Only upload files from sources you trust.
+                    </p>
                   </div>
 
                   {/* OPTION 2: Google Drive share-link import */}
@@ -3192,8 +3200,10 @@ export default function Home() {
                         file&quot; above to use a link instead.
                       </p>
                     ) : (
-                      <p className="text-[11px] text-[#94A3B8]">
-                        Paste link, enter course codes, then press Generate.
+                      <p className="text-[11px] leading-relaxed text-[#94A3B8]">
+                        Paste a Google Drive/Sheets link, enter course codes,
+                        then press Generate. Use a link shared by someone you
+                        trust; never paste a password or sign-in link.
                       </p>
                     )}
                   </div>

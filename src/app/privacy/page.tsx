@@ -28,7 +28,10 @@ export default function PrivacyPage() {
             <li>
               <strong>Files uploaded from your device:</strong> spreadsheet
               formats supported by the uploader are parsed in your browser.
-              The original upload is not sent to ExamMate&apos;s server.
+              The original upload is not sent to ExamMate&apos;s server. The
+              parser reads spreadsheet data only; it does not run embedded
+              macros or scripts. You should still use files from sources you
+              trust.
             </li>
             <li>
               <strong>Shared Google Drive or Sheets links:</strong> when you
@@ -38,7 +41,9 @@ export default function PrivacyPage() {
               opened using your Google account. We do not intentionally save
               the file or submitted link in our application database. Anyone
               with the link must be able to view the file; otherwise, upload
-              the spreadsheet from your device.
+              the spreadsheet from your device. ExamMate never asks you to
+              enter a Google password or paste a Google sign-in link into the
+              importer.
             </li>
             <li>
               <strong>Routine and course selections:</strong> the schedule you

@@ -53,7 +53,10 @@ function isSafeGoogleUrl(urlStr: string): boolean {
         host === "sheets.google.com" ||
         host === "drive.usercontent.google.com" ||
         host === "googleusercontent.com") &&
-      u.protocol === "https:"
+      u.protocol === "https:" &&
+      u.username === "" &&
+      u.password === "" &&
+      (u.port === "" || u.port === "443")
     );
   } catch {
     return false;
@@ -101,7 +104,13 @@ function parseDriveLink(raw: string): DriveTarget | null {
   }
 
   const hostname = url.hostname.toLowerCase();
-  if (!["drive.google.com", "docs.google.com", "sheets.google.com"].includes(hostname)) {
+  if (
+    !["drive.google.com", "docs.google.com", "sheets.google.com"].includes(hostname) ||
+    url.protocol !== "https:" ||
+    url.username !== "" ||
+    url.password !== "" ||
+    (url.port !== "" && url.port !== "443")
+  ) {
     return null;
   }
 

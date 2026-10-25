@@ -12,6 +12,7 @@ const MAX_ROWS_PER_SHEET = 2_000;
 const MAX_FILE_BYTES = 15 * 1024 * 1024;
 const MAX_ZIP_ENTRIES = 256;
 const MAX_UNPACKED_BYTES = 32 * 1024 * 1024;
+const MAX_EXAMS = 2_000;
 
 function validateFileBasics(file: File): string {
   if (file.size > MAX_FILE_BYTES) {
@@ -138,6 +139,10 @@ export async function parseExcelFile(file: File): Promise<ParsedExam[]> {
     type: "array",
     cellDates: true,
     sheetRows: MAX_ROWS_PER_SHEET,
+    // Routine import only needs cell values; never load macros or formula metadata.
+    cellFormula: false,
+    bookVBA: false,
+    bookFiles: false,
   });
   if (workbook.SheetNames.length > MAX_SHEETS) {
     throw new Error(`The workbook has too many sheets (maximum ${MAX_SHEETS}).`);
@@ -227,7 +232,12 @@ export async function parseExcelFile(file: File): Promise<ParsedExam[]> {
         section: cellValue(row, header.columns.section),
       });
 
-      if (exam) exams.set(exam.id, exam);
+      if (exam) {
+        exams.set(exam.id, exam);
+        if (exams.size > MAX_EXAMS) {
+          throw new Error(`This routine contains too many exams (maximum ${MAX_EXAMS}).`);
+        }
+      }
     }
   }
 
