@@ -51,7 +51,7 @@
 - A shared Drive link is fetched temporarily by the server, then parsed in the browser. Excel uploads are parsed in the browser and are not uploaded to ExamMate's server.
 - Google Calendar sync is optional. On an explicit sync action, ExamMate requests `openid`, `email`, `profile`, and `calendar.events.owned`. Google grants this Calendar scope the ability to view, create, change, and delete events on calendars the user owns. ExamMate's code uses it to create or update only the ExamMate exam events in the primary calendar; it does not list existing events or delete calendar events. Synced exam details are sent to Google and events remain there after disconnect.
 - Google OAuth account/session records are stored server-side in MongoDB; Better Auth encrypts OAuth tokens at rest. Generated exam routines remain in browser local storage for up to 15 days.
-- Vercel Analytics and Speed Insights are enabled for site usage/performance measurements. See the [Privacy Policy](https://exammate.triizync.com/privacy) for the data categories, purpose, providers, and retention/control details.
+- Vercel Analytics and Speed Insights are enabled for site usage/performance measurements.
 - Google sign-in is optional for local spreadsheet parsing and schedule generation.
 
 See the [Privacy Policy](https://exammate.triizync.com/privacy) and [Terms](https://exammate.triizync.com/terms) for more information. The policy is also linked from the application homepage and describes the Google data accessed, purpose, storage, and sharing.
