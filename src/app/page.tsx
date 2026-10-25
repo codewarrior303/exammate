@@ -2115,18 +2115,24 @@ export default function Home() {
         {/* NAVBAR */}
         <header className="order-1 z-20 w-full rounded-2xl glass-panel border border-teal-500/30 px-2.5 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
           {/* Left: shared ExamMate icon + wordmark */}
-          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            aria-label="Refresh ExamMate homepage"
+            className="flex min-w-0 select-none items-center gap-1.5 border-0 bg-transparent p-0 text-left"
+          >
             <img
               src="/icon.svg"
               alt="ExamMate Logo"
               width="28"
               height="28"
+              draggable={false}
               className="h-6 w-6 shrink-0 sm:h-7 sm:w-7"
             />
             <span className="whitespace-nowrap text-[17px] font-bold tracking-tight text-white sm:text-xl">
               Exam<span className="text-neon-mint">Mate</span>
             </span>
-          </div>
+          </button>
 
           {/* Google connection action follows the dark glass and mint page palette. */}
           <div className="group/google relative mr-0.5 shrink-0 sm:mr-1">
@@ -4369,19 +4375,25 @@ export default function Home() {
           {/* Main Footer Row */}
           <div className="flex flex-col lg:flex-row items-center justify-between gap-3 border-b border-teal-500/20 pb-4 text-center lg:text-left">
             {/* Left: shared ExamMate icon and wordmark */}
-            <div className="flex items-center justify-center gap-2.5 lg:justify-start">
-              <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center lg:justify-start">
+              <button
+                type="button"
+                onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+                aria-label="Back to top of ExamMate page"
+                className="inline-flex select-none items-center gap-1.5 border-0 bg-transparent p-0 text-left"
+              >
                 <img
                   src="/icon.svg"
                   alt="ExamMate Logo"
                   width="24"
                   height="24"
+                  draggable={false}
                   className="h-6 w-6"
                 />
                 <span className="font-tech text-lg font-bold text-white tracking-wider">
                   Exam<span className="text-neon-mint">Mate</span>
                 </span>
-              </div>
+              </button>
             </div>
 
             {/* Right: Policy and support links */}

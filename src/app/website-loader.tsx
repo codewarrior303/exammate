@@ -266,19 +266,15 @@ export function WebsiteLoader() {
       <div className="pointer-events-none absolute h-[380px] w-[380px] -translate-y-6 rounded-full bg-teal-500/[0.08] blur-[100px]" />
 
       <div className="relative z-10 flex flex-col items-center text-center px-4 max-w-sm">
-        {/* Floating Glass Emblem with breathing glow */}
-        <div className="relative mb-5 flex items-center justify-center">
-          <div className="absolute -inset-2.5 rounded-3xl bg-teal-400/20 blur-xl opacity-60 animate-pulse" />
-          <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.08] to-white/[0.02] shadow-[0_8px_32px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.15)] backdrop-blur-2xl">
-            <img
-              src="/icon.svg"
-              alt="ExamMate Logo"
-              width="44"
-              height="44"
-              className="h-9 w-9 sm:h-11 sm:w-11 drop-shadow-[0_0_16px_rgba(94,234,212,0.65)]"
-            />
-          </div>
-        </div>
+        {/* Standalone transparent mark, without a glass badge behind it. */}
+        <img
+          src="/icon.svg"
+          alt="ExamMate Logo"
+          width="64"
+          height="64"
+          draggable={false}
+          className="relative z-10 mb-5 h-14 w-14 select-none drop-shadow-[0_0_12px_rgba(94,234,212,0.35)] sm:h-16 sm:w-16"
+        />
 
         {/* Clean, Modern Brand Title */}
         <h1 className="text-2xl font-bold tracking-tight text-white font-sans">

@@ -48,10 +48,14 @@ export function RouteLoadingOverlay() {
     >
       <div className="pointer-events-none absolute h-80 w-80 rounded-full bg-teal-400/[0.07] blur-[100px]" />
       <div className="relative z-10 flex flex-col items-center gap-5">
-        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-          <span className="absolute inset-0 animate-ping rounded-2xl border border-teal-300/20" />
-          <img src="/icon.svg" alt="" width="36" height="36" className="h-9 w-9" />
-        </div>
+        <img
+          src="/icon.svg"
+          alt=""
+          width="48"
+          height="48"
+          draggable={false}
+          className="h-12 w-12 select-none drop-shadow-[0_0_12px_rgba(94,234,212,0.35)]"
+        />
         <div className="text-center">
           <p className="font-tech text-lg font-bold tracking-wide">
             Exam<span className="text-neon-mint">Mate</span>
