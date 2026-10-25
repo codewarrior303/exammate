@@ -486,7 +486,6 @@ function SupersonicRocketCraft({ isDocked }: { isDocked?: boolean }) {
 export default function Home() {
   const { data: authSession } = authClient.useSession();
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const courseCodeInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     document.documentElement.dataset.examMateHomeReady = "true";
@@ -498,7 +497,6 @@ export default function Home() {
   const [fileName, setFileName] = useState("");
   const [courseInput, setCourseInput] = useState("");
   const [courseDraft, setCourseDraft] = useState("");
-  const [isCourseCodeInputFocused, setIsCourseCodeInputFocused] = useState(false);
   const [driveLink, setDriveLink] = useState("");
   const [allExams, setAllExams] = useState<ParsedExam[]>([]);
   const [generatedExams, setGeneratedExams] = useState<ParsedExam[]>([]);
@@ -1203,35 +1201,6 @@ export default function Home() {
       );
     }
     setCourseDraft("");
-  }
-
-  function insertCourseCodeCharacter(character: string) {
-    if (isCourseInputDisabled) return;
-    const input = courseCodeInputRef.current;
-    const current = courseDraft;
-    let start = input?.selectionStart ?? current.length;
-    let end = input?.selectionEnd ?? current.length;
-
-    if (character === "backspace") {
-      if (start === end && start > 0) start -= 1;
-      const nextValue = `${current.slice(0, start)}${current.slice(end)}`;
-      setCourseDraft(nextValue);
-      setError("");
-      requestAnimationFrame(() => {
-        input?.focus({ preventScroll: true });
-        input?.setSelectionRange(start, start);
-      });
-      return;
-    }
-
-    const nextValue = `${current.slice(0, start)}${character}${current.slice(end)}`;
-    const nextCaret = start + character.length;
-    setCourseDraft(nextValue.toUpperCase());
-    setError("");
-    requestAnimationFrame(() => {
-      input?.focus({ preventScroll: true });
-      input?.setSelectionRange(nextCaret, nextCaret);
-    });
   }
 
   function removeCourseCode(codeToRemove: string) {
@@ -3302,43 +3271,11 @@ export default function Home() {
                         )}
                       </span>
                     ))}
-                    {isCourseCodeInputFocused && !isCourseInputDisabled && (
-                      <div
-                        role="group"
-                        aria-label="Course code number shortcuts"
-                        className="flex w-full min-w-0 items-center gap-1 overflow-x-auto border-t border-teal-500/15 pt-2"
-                      >
-                        {["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "."].map((key) => (
-                          <button
-                            key={key}
-                            type="button"
-                            onPointerDown={(event) => event.preventDefault()}
-                            onClick={() => insertCourseCodeCharacter(key)}
-                            aria-label={key === "." ? "Insert decimal point" : `Insert ${key}`}
-                            className="h-8 min-w-7 shrink-0 rounded-md border border-teal-400/20 bg-teal-500/[0.06] px-2 font-mono-code text-xs text-teal-100 active:bg-teal-400/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300"
-                          >
-                            {key}
-                          </button>
-                        ))}
-                        <button
-                          type="button"
-                          onPointerDown={(event) => event.preventDefault()}
-                          onClick={() => insertCourseCodeCharacter("backspace")}
-                          aria-label="Delete previous character"
-                          className="h-8 min-w-10 shrink-0 rounded-md border border-teal-400/20 bg-teal-500/[0.06] px-2 font-mono-code text-xs text-teal-100 active:bg-teal-400/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300"
-                        >
-                          ⌫
-                        </button>
-                      </div>
-                    )}
                     <input
                       id="course-codes"
-                      name="course-code-entry"
-                      ref={courseCodeInputRef}
                       type="text"
                       inputMode="text"
                       enterKeyHint="done"
-                      onFocus={() => setIsCourseCodeInputFocused(true)}
                       onContextMenu={(e) => e.preventDefault()}
                       disabled={isCourseInputDisabled}
                       value={courseDraft}
@@ -3381,7 +3318,6 @@ export default function Home() {
                         }
                       }}
                       onBlur={() => {
-                        setIsCourseCodeInputFocused(false);
                         if (isCourseInputDisabled) return;
                         const trimmed = courseDraft.trim().toUpperCase();
                         if (trimmed) {
