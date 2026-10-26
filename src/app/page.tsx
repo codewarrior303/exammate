@@ -1153,7 +1153,7 @@ export default function Home() {
     } catch {
       // ignore
     }
-  }, [generatedExams, isHydrated, isSampleRoutine]);
+  }, [authSession, generatedExams, hasCalendarScope, isHydrated, isSampleRoutine]);
 
   function persistRoutine(exams: ParsedExam[]) {
     // Only persist actual user routines, never sample routines (so tab close clears sample routine)
@@ -1207,7 +1207,7 @@ export default function Home() {
   useEffect(() => {
     if (!isHydrated || isSampleRoutine || generatedExams.length === 0) return;
     persistRoutine(generatedExams);
-  }, [generatedExams, isHydrated, isSampleRoutine]);
+  }, [authSession, generatedExams, hasCalendarScope, isHydrated, isSampleRoutine]);
 
   async function handleFileUpload(file: File) {
     if (isRealRoutineGenerated) {
@@ -4478,10 +4478,24 @@ export default function Home() {
                                     setCalendarSyncing(true);
                                     setError("");
 
+                                    const examsToSync = generatedExams;
+                                    if (!examsToSync.length) {
+                                      closeSyncPrompt();
+                                      setCalendarSyncing(false);
+                                      return;
+                                    }
+
                                     try {
                                       if (authSession && hasCalendarScope) {
-                                        await syncCalendar(generatedExams);
-                                        closeSyncPrompt();
+                                        const syncKey = JSON.stringify(examsToSync);
+                                        lastCalendarSyncRef.current = syncKey;
+                                        const synced = await syncCalendar(examsToSync);
+                                        if (synced) {
+                                          closeSyncPrompt();
+                                          setMessage("Exams successfully synced to Google Calendar!");
+                                        } else {
+                                          lastCalendarSyncRef.current = "";
+                                        }
                                         return;
                                       }
 
@@ -4511,6 +4525,49 @@ export default function Home() {
                                           authResult.error.message ||
                                             "Calendar permission was not granted.",
                                         );
+                                      }
+
+                                      // Poll /api/calendar/sync briefly to ensure the new calendar scope is active on server
+                                      let calendarConfirmed = false;
+                                      for (let attempt = 0; attempt < 10; attempt += 1) {
+                                        try {
+                                          const res = await fetch("/api/calendar/sync", { cache: "no-store" });
+                                          if (res.ok) {
+                                            const data = (await res.json()) as {
+                                              connected?: boolean;
+                                              hasCalendarScope?: boolean;
+                                            };
+                                            if (data?.connected && data.hasCalendarScope) {
+                                              calendarConfirmed = true;
+                                              setHasCalendarScope(true);
+                                              break;
+                                            }
+                                          }
+                                        } catch {
+                                          // retry
+                                        }
+                                        await new Promise((resolve) => window.setTimeout(resolve, 500));
+                                      }
+
+                                      window.sessionStorage.removeItem(
+                                        "examMate:pendingCalendarSync",
+                                      );
+
+                                      if (!calendarConfirmed) {
+                                        throw new Error(
+                                          "Calendar permission was not detected. Please try connecting Google Calendar again.",
+                                        );
+                                      }
+
+                                      const syncKey = JSON.stringify(examsToSync);
+                                      lastCalendarSyncRef.current = syncKey;
+                                      const synced = await syncCalendar(examsToSync);
+                                      if (synced) {
+                                        closeSyncPrompt();
+                                        setMessage("Exams successfully synced to Google Calendar!");
+                                      } else {
+                                        lastCalendarSyncRef.current = "";
+                                        throw new Error("Could not sync exams to Google Calendar. Please try again.");
                                       }
                                       return;
                                     } catch (err) {
