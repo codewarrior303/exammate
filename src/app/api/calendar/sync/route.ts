@@ -123,7 +123,7 @@ export async function GET() {
       );
     }
     const hasCalendarScope = googleAccounts.some((account) =>
-      hasCalendarEventScope(account.scopes),
+      hasCalendarEventScope(account.scopes ?? (account as any).scope),
     );
     return NextResponse.json(
       {
@@ -188,7 +188,7 @@ export async function POST(request: Request) {
 
   const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
   if (!googleAccounts.length) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
-  if (!googleAccounts.some((account) => hasCalendarEventScope(account.scopes))) {
+  if (!googleAccounts.some((account) => hasCalendarEventScope(account.scopes ?? (account as any).scope))) {
     return NextResponse.json(
       { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
       { status: 403 },
@@ -238,7 +238,7 @@ export async function POST(request: Request) {
   }
 
   const googleAccount = getPrimaryGoogleAccount(googleAccounts, hasCalendarEventScope);
-  if (!googleAccount || !hasCalendarEventScope(googleAccount.scopes)) {
+  if (!googleAccount || !hasCalendarEventScope(googleAccount.scopes ?? (googleAccount as any).scope)) {
     return NextResponse.json(
       { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
       { status: 403 }

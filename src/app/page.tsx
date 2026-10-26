@@ -279,6 +279,7 @@ async function startGoogleSignIn(options?: { requireDrive?: boolean }) {
     scopes,
     additionalParams: {
       access_type: "offline",
+      include_granted_scopes: "true",
       prompt: "select_account consent",
     },
   });
@@ -1505,6 +1506,7 @@ export default function Home() {
             scopes: GOOGLE_DRIVE_SCOPES,
             additionalParams: {
               access_type: "offline",
+              include_granted_scopes: "true",
               prompt: authSession?.user ? "consent" : "select_account consent",
               ...(authSession?.user?.email ? { login_hint: authSession.user.email } : {}),
             },
@@ -1543,6 +1545,7 @@ export default function Home() {
               scopes: GOOGLE_DRIVE_SCOPES,
               additionalParams: {
                 access_type: "offline",
+                include_granted_scopes: "true",
                 prompt: authSession?.user ? "consent" : "select_account consent",
                 ...(authSession?.user?.email
                   ? { login_hint: authSession.user.email }
@@ -1653,97 +1656,77 @@ export default function Home() {
     }, 60);
 
     const finishRoutineGeneration = async () => {
-      if (isSampleRoutine) {
-        setIsRevealingRows(false);
-        routineSourceRef.current = "sample";
-        setShowCalendarSyncPrompt(false);
-        setMessage(
-          `${matches.length} exam${matches.length === 1 ? "" : "s"} generated (Sample Preview).`,
-        );
-        generationLockRef.current = false;
-        return;
-      }
-
-      if (link) {
-        routineSourceRef.current = "drive";
-        try {
-          window.sessionStorage.setItem("examMate:routineSource", "drive");
-        } catch {
-          // ignore
-        }
-      } else {
-        routineSourceRef.current = "excel";
-      }
-
-      // Read the final server-side OAuth state only after Drive authorization
-      // and import have completed. The initial request can race a Google OAuth
-      // callback and otherwise leave a Drive routine generated but unsynced.
-      const calendarStatus = await fetch("/api/calendar/sync", { cache: "no-store" })
-        .then(async (response) => response.ok
-          ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
-          : null)
-        .catch(() => null);
-      const isConnected = calendarStatus?.connected ?? Boolean(authSession?.user);
-      const calendarPermissionGranted =
-        calendarStatus?.hasCalendarScope ?? hasCalendarScope;
-      setHasCalendarScope(calendarPermissionGranted);
-      if (isConnected && calendarPermissionGranted) {
-        // Reserve the key before ending row reveal so the scope-change effect
-        // cannot race this generation and create the same events twice.
-        lastCalendarSyncRef.current = JSON.stringify(matches);
-      }
-      setIsRevealingRows(false);
-
-      // A connected account with Calendar permission syncs the newly generated routine.
-      if (isConnected && calendarPermissionGranted) {
-        setShowCalendarSyncPrompt(false);
-        setIsSyncPromptClosing(false);
-        if (syncPromptTimeoutRef.current) {
-          clearTimeout(syncPromptTimeoutRef.current);
-          syncPromptTimeoutRef.current = null;
+      try {
+        if (isSampleRoutine) {
+          routineSourceRef.current = "sample";
+          setShowCalendarSyncPrompt(false);
+          return;
         }
 
-        setMessage(
-          `${matches.length} exam${matches.length === 1 ? "" : "s"} generated.${
-            unmatched.length ? ` Unmatched: ${unmatched.join(", ")}.` : ""
-          } Auto-syncing to Google Calendar…`,
-        );
-
-        await syncCalendar(matches);
-      } else if (isConnected && !calendarPermissionGranted) {
-        // Ask before requesting Calendar permission from the connected account.
-        setShowCalendarSyncPrompt(false);
-        setIsSyncPromptClosing(false);
-        if (syncPromptTimeoutRef.current) {
-          clearTimeout(syncPromptTimeoutRef.current);
+        if (link) {
+          routineSourceRef.current = "drive";
+          try {
+            window.sessionStorage.setItem("examMate:routineSource", "drive");
+          } catch {
+            // ignore
+          }
+        } else {
+          routineSourceRef.current = "excel";
         }
-        syncPromptTimeoutRef.current = setTimeout(() => {
-          setShowCalendarSyncPrompt(true);
+
+        // Read the final server-side OAuth state only after Drive authorization
+        // and import have completed. The initial request can race a Google OAuth
+        // callback and otherwise leave a Drive routine generated but unsynced.
+        const calendarStatus = await fetch("/api/calendar/sync", { cache: "no-store" })
+          .then(async (response) => response.ok
+            ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
+            : null)
+          .catch(() => null);
+        const isConnected = calendarStatus?.connected ?? Boolean(authSession?.user);
+        const calendarPermissionGranted =
+          calendarStatus?.hasCalendarScope ?? hasCalendarScope;
+        setHasCalendarScope(calendarPermissionGranted);
+        if (isConnected && calendarPermissionGranted) {
+          // Reserve the key before ending row reveal so the scope-change effect
+          // cannot race this generation and create the same events twice.
+          lastCalendarSyncRef.current = JSON.stringify(matches);
+        }
+
+        // A connected account with Calendar permission syncs the newly generated routine.
+        if (isConnected && calendarPermissionGranted) {
+          setShowCalendarSyncPrompt(false);
           setIsSyncPromptClosing(false);
-        }, 1200);
+          if (syncPromptTimeoutRef.current) {
+            clearTimeout(syncPromptTimeoutRef.current);
+            syncPromptTimeoutRef.current = null;
+          }
 
-        setMessage(
-          `${matches.length} exam${matches.length === 1 ? "" : "s"} generated.${
-            unmatched.length ? ` Unmatched: ${unmatched.join(", ")}.` : ""
-          }`,
-        );
-      } else {
-        // Scenario C: Google is NOT connected at all:
-        // No in-table popup dialog! Navbar Google Connect button remains ready and active for the user.
-        setShowCalendarSyncPrompt(false);
-        setIsSyncPromptClosing(false);
-        if (syncPromptTimeoutRef.current) {
-          clearTimeout(syncPromptTimeoutRef.current);
-          syncPromptTimeoutRef.current = null;
+          await syncCalendar(matches);
+        } else if (isConnected && !calendarPermissionGranted) {
+          // Ask before requesting Calendar permission from the connected account.
+          setShowCalendarSyncPrompt(false);
+          setIsSyncPromptClosing(false);
+          if (syncPromptTimeoutRef.current) {
+            clearTimeout(syncPromptTimeoutRef.current);
+          }
+          syncPromptTimeoutRef.current = setTimeout(() => {
+            setShowCalendarSyncPrompt(true);
+            setIsSyncPromptClosing(false);
+          }, 1200);
+        } else {
+          // Scenario C: Google is NOT connected at all:
+          // No in-table popup dialog! Navbar Google Connect button remains ready and active for the user.
+          setShowCalendarSyncPrompt(false);
+          setIsSyncPromptClosing(false);
+          if (syncPromptTimeoutRef.current) {
+            clearTimeout(syncPromptTimeoutRef.current);
+            syncPromptTimeoutRef.current = null;
+          }
         }
-
-        setMessage(
-          `${matches.length} exam${matches.length === 1 ? "" : "s"} generated.${
-            unmatched.length ? ` Unmatched: ${unmatched.join(", ")}.` : ""
-          }`,
-        );
+      } finally {
+        setIsRevealingRows(false);
+        generationLockRef.current = false;
       }
-      generationLockRef.current = false;
     };
 
     if (matches.length > 1) {
@@ -1764,11 +1747,13 @@ export default function Home() {
             clearInterval(rowRevealIntervalRef.current);
             rowRevealIntervalRef.current = null;
           }
-          finishRoutineGeneration();
+          setIsRevealingRows(false);
+          void finishRoutineGeneration();
         }
       }, stepInterval);
     } else {
-      finishRoutineGeneration();
+      setIsRevealingRows(false);
+      void finishRoutineGeneration();
     }
   }
 
@@ -4516,6 +4501,7 @@ export default function Home() {
                                         scopes: GOOGLE_CALENDAR_SCOPES,
                                         additionalParams: {
                                           access_type: "offline",
+                                          include_granted_scopes: "true",
                                           prompt: authSession?.user ? "consent" : "select_account consent",
                                           ...(authSession?.user?.email
                                             ? { login_hint: authSession.user.email }

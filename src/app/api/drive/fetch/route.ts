@@ -571,7 +571,7 @@ export async function GET() {
       ? await auth.api.listUserAccounts({ headers: requestHeaders })
       : [];
     const googleAccount = getPrimaryGoogleAccount(accounts, hasDriveReadScope);
-    const hasDriveScope = hasDriveReadScope(googleAccount?.scopes);
+    const hasDriveScope = hasDriveReadScope(googleAccount?.scopes ?? (googleAccount as any)?.scope);
     return NextResponse.json(
       { connected: Boolean(session && googleAccount), hasDriveScope },
       { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
@@ -656,7 +656,7 @@ export async function POST(request: Request) {
       if (session) {
         const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
         googleAccount = getPrimaryGoogleAccount(accounts, hasDriveReadScope);
-        if (googleAccount && hasDriveReadScope(googleAccount.scopes)) {
+        if (googleAccount && hasDriveReadScope(googleAccount.scopes ?? (googleAccount as any).scope)) {
           const accessToken = await getGoogleAccessToken(googleAccount.id, requestHeaders);
           if (accessToken) {
             const privateResult = await downloadWithGoogleDriveApi(target.id, accessToken);
@@ -683,7 +683,10 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: result.error,
-          requiresGoogleAuth: !session || !googleAccount || !hasDriveReadScope(googleAccount.scopes),
+          requiresGoogleAuth:
+            !session ||
+            !googleAccount ||
+            !hasDriveReadScope(googleAccount.scopes ?? (googleAccount as any).scope),
         },
         { status: 422 }
       );
