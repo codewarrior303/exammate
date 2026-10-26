@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Clock,
   Clock3,
-  AlertTriangle,
   Download,
   FileSpreadsheet,
   FileText,
@@ -26,7 +25,6 @@ import {
   LoaderCircle,
   Mail,
   Printer,
-  Send,
   ClipboardPaste,
   ShieldCheck,
   Sparkles,
@@ -4482,8 +4480,7 @@ export default function Home() {
 
                                     try {
                                       if (authSession && hasCalendarScope) {
-                                        const ok =
-                                          await syncCalendar(generatedExams);
+                                        await syncCalendar(generatedExams);
                                         closeSyncPrompt();
                                         return;
                                       }
@@ -4626,7 +4623,7 @@ export default function Home() {
                   type="button"
                   aria-describedby="footer-support-tooltip"
                   aria-label="Contact ExamMate support"
-                  onClick={(event) => {
+                  onClick={() => {
                     const isTouchDevice =
                       navigator.maxTouchPoints > 0 &&
                       window.matchMedia("(pointer: coarse)").matches;

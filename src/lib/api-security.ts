@@ -12,6 +12,7 @@ function getAllowedOrigins(): Set<string> {
         process.env.BETTER_AUTH_URL,
         process.env.FRONTEND_ORIGIN,
         process.env.VERCEL_PROJECT_PRODUCTION_URL,
+        "https://exammate.triizync.com",
       ]
     : [
         process.env.BETTER_AUTH_URL,
