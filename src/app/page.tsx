@@ -1428,14 +1428,6 @@ export default function Home() {
     setError("");
     setMessage("");
 
-    // Recheck the server-side Google account/scopes for this generation so
-    // Excel and Drive both use the current connection state, not stale UI state.
-    const calendarStatusPromise = fetch("/api/calendar/sync", { cache: "no-store" })
-      .then(async (response) => response.ok
-        ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
-        : null)
-      .catch(() => null);
-
     // Smoothly scroll down so user immediately sees the glowing loading skeleton table
     window.setTimeout(() => {
       const resultsEl = document.getElementById("results");
@@ -1697,7 +1689,14 @@ export default function Home() {
         routineSourceRef.current = "excel";
       }
 
-      const calendarStatus = await calendarStatusPromise;
+      // Read the final server-side OAuth state only after Drive authorization
+      // and import have completed. The initial request can race a Google OAuth
+      // callback and otherwise leave a Drive routine generated but unsynced.
+      const calendarStatus = await fetch("/api/calendar/sync", { cache: "no-store" })
+        .then(async (response) => response.ok
+          ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
+          : null)
+        .catch(() => null);
       const isConnected = calendarStatus?.connected ?? Boolean(authSession?.user);
       const calendarPermissionGranted =
         calendarStatus?.hasCalendarScope ?? hasCalendarScope;
@@ -1724,9 +1723,7 @@ export default function Home() {
           } Auto-syncing to Google Calendar…`,
         );
 
-        window.setTimeout(() => {
-          void syncCalendar(matches);
-        }, 500);
+        await syncCalendar(matches);
       } else if (isConnected && !calendarPermissionGranted) {
         // Ask before requesting Calendar permission from the connected account.
         setShowCalendarSyncPrompt(false);
