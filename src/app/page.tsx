@@ -241,14 +241,21 @@ const GOOGLE_IDENTITY_SCOPES = [
   "profile",
 ];
 
+const GOOGLE_CALENDAR_SCOPES = [
+  ...GOOGLE_IDENTITY_SCOPES,
+  "https://www.googleapis.com/auth/calendar.events.owned",
+];
+
 const GOOGLE_DRIVE_SCOPES = [
   ...GOOGLE_IDENTITY_SCOPES,
   "https://www.googleapis.com/auth/drive.readonly",
 ];
 
-const GOOGLE_CALENDAR_SCOPES = [
-  ...GOOGLE_IDENTITY_SCOPES,
-  "https://www.googleapis.com/auth/calendar.events.owned",
+// A Drive import can request Drive and Calendar together in one Google
+// consent flow. Users may grant Drive only; Calendar remains optional.
+const GOOGLE_CALENDAR_DRIVE_SCOPES = [
+  ...GOOGLE_CALENDAR_SCOPES,
+  "https://www.googleapis.com/auth/drive.readonly",
 ];
 
 const PENDING_DRIVE_IMPORT_KEY = "examMate:pendingDriveImport";
@@ -261,8 +268,10 @@ class DriveAuthorizationRequiredError extends Error {
   }
 }
 
-async function startGoogleSignIn(options?: { driveOnly?: boolean }) {
-  const scopes = options?.driveOnly ? GOOGLE_DRIVE_SCOPES : GOOGLE_CALENDAR_SCOPES;
+async function startGoogleSignIn(options?: { requireDrive?: boolean }) {
+  const scopes = options?.requireDrive
+    ? GOOGLE_CALENDAR_DRIVE_SCOPES
+    : GOOGLE_CALENDAR_SCOPES;
   return authClient.signIn.social({
     provider: "google",
     callbackURL: "/",
@@ -608,6 +617,7 @@ export default function Home() {
   const linkBoxRef = useRef<HTMLDivElement>(null);
   const linkPopupRef = useRef<HTMLDivElement>(null);
   const routineSourceRef = useRef<"excel" | "drive" | "sample">("excel");
+  const generationLockRef = useRef(false);
   const tableWrapperRef = useRef<HTMLDivElement>(null);
   const [tableScrollState, setTableScrollState] = useState({
     canLeft: false,
@@ -777,6 +787,7 @@ export default function Home() {
       !isHydrated ||
       !hasCalendarScope ||
       !generatedExams.length ||
+      generationLockRef.current ||
       isSampleRoutine ||
       isRevealingRows ||
       routineSourceRef.current === "sample"
@@ -1360,9 +1371,22 @@ export default function Home() {
       return;
     }
 
+    // Prevent rapid clicks/Enter presses from starting duplicate Drive OAuth
+    // redirects before React has applied the disabled button state.
+    if (generationLockRef.current) return;
+    generationLockRef.current = true;
+
     setGenerating(true);
     setError("");
     setMessage("");
+
+    // Recheck the server-side Google account/scopes for this generation so
+    // Excel and Drive both use the current connection state, not stale UI state.
+    const calendarStatusPromise = fetch("/api/calendar/sync", { cache: "no-store" })
+      .then(async (response) => response.ok
+        ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
+        : null)
+      .catch(() => null);
 
     // Smoothly scroll down so user immediately sees the glowing loading skeleton table
     window.setTimeout(() => {
@@ -1396,10 +1420,11 @@ export default function Home() {
           setGoogleLoading(true);
           setMessage("Connect your university Google account to continue.");
           if (authSession?.user) await authClient.signOut();
-          const authResult = await startGoogleSignIn({ driveOnly: true });
+          const authResult = await startGoogleSignIn({ requireDrive: true });
           if (authResult?.error) throw new Error(authResult.error.message || "Google sign-in failed.");
           return;
         } catch (authorizationError) {
+          generationLockRef.current = false;
           window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
           setGoogleLoading(false);
           setMessage("");
@@ -1423,23 +1448,21 @@ export default function Home() {
             setGenerating(false);
             setGoogleLoading(true);
             setMessage("Connect the Google account that has access to this Drive file.");
-            const authResult = authSession?.user
-              ? await authClient.linkSocial({
-                  provider: "google",
-                  callbackURL: "/",
-                  scopes: GOOGLE_DRIVE_SCOPES,
-                  additionalParams: { access_type: "offline", prompt: "select_account consent" },
-                })
-              : await authClient.signIn.social({
-                  provider: "google",
-                  callbackURL: "/",
-                  errorCallbackURL: "/?auth_error=google_oauth",
-                  scopes: GOOGLE_DRIVE_SCOPES,
-                  additionalParams: { access_type: "offline", prompt: "select_account consent" },
-                });
+            const authResult = await authClient.signIn.social({
+              provider: "google",
+              callbackURL: "/",
+              errorCallbackURL: "/?auth_error=google_oauth",
+              scopes: GOOGLE_DRIVE_SCOPES,
+              additionalParams: {
+                access_type: "offline",
+                prompt: authSession?.user ? "consent" : "select_account consent",
+                ...(authSession?.user.email ? { login_hint: authSession.user.email } : {}),
+              },
+            });
             if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
             return;
           } catch (authorizationError) {
+            generationLockRef.current = false;
             window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
             setGoogleLoading(false);
             setMessage("");
@@ -1453,6 +1476,7 @@ export default function Home() {
             : "Could not read Google Drive link.",
         );
         setGenerating(false);
+        generationLockRef.current = false;
         return;
       }
     }
@@ -1511,6 +1535,7 @@ export default function Home() {
     if (!matches.length) {
       setError(`No matches found for: ${unmatched.join(", ")}.`);
       setGenerating(false);
+      generationLockRef.current = false;
       setVisibleRowCount(0);
       setIsRevealingRows(false);
       return;
@@ -1537,14 +1562,15 @@ export default function Home() {
       }
     }, 60);
 
-    const finishRoutineGeneration = () => {
-      setIsRevealingRows(false);
+    const finishRoutineGeneration = async () => {
       if (isSampleRoutine) {
+        setIsRevealingRows(false);
         routineSourceRef.current = "sample";
         setShowCalendarSyncPrompt(false);
         setMessage(
           `${matches.length} exam${matches.length === 1 ? "" : "s"} generated (Sample Preview).`,
         );
+        generationLockRef.current = false;
         return;
       }
 
@@ -1559,10 +1585,20 @@ export default function Home() {
         routineSourceRef.current = "excel";
       }
 
-      const isConnected = Boolean(authSession?.user);
+      const calendarStatus = await calendarStatusPromise;
+      const isConnected = calendarStatus?.connected ?? Boolean(authSession?.user);
+      const calendarPermissionGranted =
+        calendarStatus?.hasCalendarScope ?? hasCalendarScope;
+      setHasCalendarScope(calendarPermissionGranted);
+      if (isConnected && calendarPermissionGranted) {
+        // Reserve the key before ending row reveal so the scope-change effect
+        // cannot race this generation and create the same events twice.
+        lastCalendarSyncRef.current = JSON.stringify(matches);
+      }
+      setIsRevealingRows(false);
 
       // A connected account with Calendar permission syncs the newly generated routine.
-      if (isConnected && hasCalendarScope) {
+      if (isConnected && calendarPermissionGranted) {
         setShowCalendarSyncPrompt(false);
         setIsSyncPromptClosing(false);
         if (syncPromptTimeoutRef.current) {
@@ -1576,15 +1612,11 @@ export default function Home() {
           } Auto-syncing to Google Calendar…`,
         );
 
-        const syncKey = JSON.stringify(matches);
-        if (lastCalendarSyncRef.current !== syncKey) {
-          lastCalendarSyncRef.current = syncKey;
-          window.setTimeout(() => {
-            void syncCalendar(matches);
-          }, 500);
-        }
-      } else if (isConnected && !hasCalendarScope) {
-        // Ask before requesting Calendar permission for an identity-only connection.
+        window.setTimeout(() => {
+          void syncCalendar(matches);
+        }, 500);
+      } else if (isConnected && !calendarPermissionGranted) {
+        // Ask before requesting Calendar permission from the connected account.
         setShowCalendarSyncPrompt(false);
         setIsSyncPromptClosing(false);
         if (syncPromptTimeoutRef.current) {
@@ -1616,6 +1648,7 @@ export default function Home() {
           }`,
         );
       }
+      generationLockRef.current = false;
     };
 
     if (matches.length > 1) {
@@ -4382,9 +4415,10 @@ export default function Home() {
                                           "examMate:pendingCalendarSync",
                                           "true",
                                         );
-                                        const scopeResult = await authClient.linkSocial({
+                                        const scopeResult = await authClient.signIn.social({
                                           provider: "google",
                                           callbackURL: "/",
+                                          errorCallbackURL: "/?auth_error=google_oauth",
                                           scopes: GOOGLE_CALENDAR_SCOPES,
                                           additionalParams: {
                                             access_type: "offline",
