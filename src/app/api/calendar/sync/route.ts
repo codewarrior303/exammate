@@ -16,37 +16,6 @@ function hasCalendarEventScope(scopes: string[] | undefined): boolean {
   return Boolean(scopes?.some((scope) => CALENDAR_EVENT_SCOPES.has(scope)));
 }
 
-async function getMatchingCalendarAccount(
-  accounts: Awaited<ReturnType<typeof auth.api.listUserAccounts>>,
-  expectedEmail: string,
-  requestHeaders: Headers,
-) {
-  const normalizedEmail = expectedEmail.trim().toLowerCase();
-  for (const account of accounts ?? []) {
-    if (account.providerId !== "google" || !hasCalendarEventScope(account.scopes)) continue;
-    try {
-      const token = await auth.api.getAccessToken({
-        body: { accountId: account.id },
-        headers: requestHeaders,
-      });
-      if (!token?.accessToken) continue;
-      const response = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
-        headers: { Authorization: `Bearer ${token.accessToken}` },
-        signal: AbortSignal.timeout(8_000),
-        cache: "no-store",
-      });
-      if (!response.ok) continue;
-      const profile = await response.json() as { email?: string; email_verified?: boolean };
-      if (profile.email?.trim().toLowerCase() === normalizedEmail && profile.email_verified !== false) {
-        return { account, accessToken: token.accessToken };
-      }
-    } catch {
-      // Try the next linked Google account without exposing token/provider details.
-    }
-  }
-  return null;
-}
-
 type Exam = {
   id: string;
   courseCode: string;
@@ -219,7 +188,10 @@ export async function POST(request: Request) {
 
   const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
   if (!googleAccounts.length) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
-  if (!googleAccounts.some((account) => hasCalendarEventScope(account.scopes))) {
+  const googleAccount = googleAccounts.find((account) =>
+    hasCalendarEventScope(account.scopes),
+  );
+  if (!googleAccount) {
     return NextResponse.json(
       { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
       { status: 403 },
@@ -268,23 +240,22 @@ export async function POST(request: Request) {
     );
   }
 
-  let matchingAccount: Awaited<ReturnType<typeof getMatchingCalendarAccount>>;
+  let token;
   try {
-    matchingAccount = await getMatchingCalendarAccount(
-      googleAccounts,
-      session.user.email,
-      await headers(),
-    );
+    token = await auth.api.getAccessToken({
+      body: { accountId: googleAccount.id },
+      headers: await headers(),
+    });
   } catch {
     return NextResponse.json(
       { error: "Google session expired. Please reconnect Google from navbar." },
       { status: 401 }
     );
   }
-  if (!matchingAccount) {
+  if (!token?.accessToken) {
     return NextResponse.json(
-      { error: `Calendar access is connected to a different Google account. Connect ${session.user.email} to sync this routine.` },
-      { status: 403 },
+      { error: "Google session expired. Please reconnect Google from navbar." },
+      { status: 401 }
     );
   }
 
@@ -330,7 +301,7 @@ Time: ${examTime}<br><br>
       };
       const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events?fields=id,reminders";
       const requestOptions: RequestInit = {
-        headers: { Authorization: `Bearer ${matchingAccount.accessToken}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${token.accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(event),
         signal: AbortSignal.timeout(15_000),
       };
