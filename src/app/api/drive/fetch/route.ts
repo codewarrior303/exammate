@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getPrimaryGoogleAccount } from "@/lib/google-account";
+import { getGoogleAccountForEmail } from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export const runtime = "nodejs";
@@ -570,10 +570,12 @@ export async function GET() {
     const accounts = session
       ? await auth.api.listUserAccounts({ headers: requestHeaders })
       : [];
-    const googleAccount = getPrimaryGoogleAccount(accounts);
-    const hasDriveScope = hasDriveReadScope(googleAccount?.scopes);
+    const matchingAccount = session
+      ? await getGoogleAccountForEmail(accounts, session.user.email, requestHeaders)
+      : null;
+    const hasDriveScope = hasDriveReadScope(matchingAccount?.account.scopes);
     return NextResponse.json(
-      { connected: Boolean(session && googleAccount), hasDriveScope },
+      { connected: Boolean(session && matchingAccount), hasDriveScope },
       { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
     );
   } catch {
@@ -655,20 +657,16 @@ export async function POST(request: Request) {
       session = await auth.api.getSession({ headers: requestHeaders });
       if (session) {
         const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-        googleAccount = getPrimaryGoogleAccount(accounts);
-      }
-    } catch {
-      // Public shared links remain available if optional sign-in is unavailable.
-    }
-
-    if (session && googleAccount && hasDriveReadScope(googleAccount.scopes)) {
-      try {
-        const token = await auth.api.getAccessToken({
-          body: { accountId: googleAccount.id },
-          headers: requestHeaders!,
-        });
-        if (token?.accessToken) {
-          const privateResult = await downloadWithGoogleDriveApi(target.id, token.accessToken);
+        const matchingAccount = await getGoogleAccountForEmail(
+          accounts,
+          session.user.email,
+          requestHeaders,
+        );
+        googleAccount = matchingAccount?.account;
+        if (matchingAccount?.accessToken) {
+          const privateResult = hasDriveReadScope(googleAccount?.scopes)
+            ? await downloadWithGoogleDriveApi(target.id, matchingAccount.accessToken)
+            : null;
           if (privateResult) {
             return new Response(privateResult.buffer as unknown as BodyInit, {
               headers: {
@@ -681,9 +679,9 @@ export async function POST(request: Request) {
             });
           }
         }
-      } catch {
-        // Do not expose provider errors, file IDs, or access tokens to the client/logs.
       }
+    } catch {
+      // Public shared links remain available if optional sign-in is unavailable.
     }
 
     const result = await downloadDriveFile(target);
