@@ -189,6 +189,16 @@ function isValidStoredRoutine(value: unknown): value is {
   );
 }
 
+function isVarsityEmail(email?: string | null): boolean {
+  const normalized = email?.trim().toLowerCase();
+  return Boolean(
+    normalized &&
+      (normalized.endsWith("@seu.edu.bd") ||
+        normalized.endsWith(".edu.bd") ||
+        normalized.endsWith(".edu")),
+  );
+}
+
 function isGoogleDriveLink(val: unknown): boolean {
   if (!val || typeof val !== "string") return false;
   const trimmed = val.trim();
@@ -251,13 +261,28 @@ class DriveAuthorizationRequiredError extends Error {
   }
 }
 
-async function startGoogleSignInPopup() {
+async function startGoogleSignIn(options?: { driveOnly?: boolean }) {
+  const scopes = options?.driveOnly ? GOOGLE_DRIVE_SCOPES : GOOGLE_CALENDAR_SCOPES;
+  return authClient.signIn.social({
+    provider: "google",
+    callbackURL: "/",
+    errorCallbackURL: "/?auth_error=google_oauth",
+    scopes,
+    additionalParams: {
+      access_type: "offline",
+      prompt: "select_account consent",
+    },
+  });
+}
+
+async function startGoogleSignInPopup(loginHint?: string | null) {
   return (authClient.signIn as any).popup({
     provider: "google",
     scopes: GOOGLE_CALENDAR_SCOPES,
     additionalParams: {
       access_type: "offline",
-      prompt: "select_account consent",
+      prompt: "consent",
+      ...(loginHint ? { login_hint: loginHint } : {}),
     },
   });
 }
@@ -714,6 +739,11 @@ export default function Home() {
       const createdAt = Number(pending?.createdAt);
       if (!url || !isGoogleDriveLink(url) || !Number.isFinite(createdAt) || Date.now() - createdAt > 10 * 60_000) {
         window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+        return;
+      }
+      if (!isVarsityEmail(authSession.user.email)) {
+        window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+        setError("Please connect your university Google account to import this Drive routine.");
         return;
       }
       try {
@@ -1352,6 +1382,31 @@ export default function Home() {
     if (link) {
       addRecentLink(link);
       setShowLinkPopup(false);
+
+      // Restore the original Drive flow: sign in with the university account
+      // before attempting to read its routine file, then resume this import.
+      if (!isVarsityEmail(authSession?.user?.email)) {
+        try {
+          window.sessionStorage.setItem(PENDING_DRIVE_IMPORT_KEY, JSON.stringify({
+            url: link,
+            courses: effectiveSelectedCodes.join(", "),
+            createdAt: Date.now(),
+          }));
+          setGenerating(false);
+          setGoogleLoading(true);
+          setMessage("Connect your university Google account to continue.");
+          if (authSession?.user) await authClient.signOut();
+          const authResult = await startGoogleSignIn({ driveOnly: true });
+          if (authResult?.error) throw new Error(authResult.error.message || "Google sign-in failed.");
+          return;
+        } catch (authorizationError) {
+          window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+          setGoogleLoading(false);
+          setMessage("");
+          setError(authorizationError instanceof Error ? authorizationError.message : "Could not connect your university Google account.");
+          return;
+        }
+      }
 
       try {
         sourceExams = await loadExamsFromDrive(link);
@@ -4264,7 +4319,7 @@ export default function Home() {
                             </div>
                           ) : (
                             <span className="text-xs sm:text-[13px] font-semibold text-white tracking-wide whitespace-nowrap transition-all duration-300">
-                              Sync this routine with Google Calendar?
+                              Sync with Google Calendar?
                             </span>
                           )}
 
@@ -4292,17 +4347,22 @@ export default function Home() {
                               </span>
                             </div>
                           ) : (
-                            <div className="flex items-center justify-center gap-3 transition-all duration-300">
-                              <button
-                                type="button"
-                                onClick={() => closeSyncPrompt()}
-                                aria-label="No, do not sync with Google Calendar"
-                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-400/25 px-4 py-2 text-xs font-semibold text-rose-200 transition-colors hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
-                              >
-                                <X className="h-4 w-4" />
-                                No
-                              </button>
-                              <div className="relative inline-flex items-center justify-center">
+                            <div className="flex items-center justify-center gap-6 transition-all duration-300">
+                              <div className="group/cancel relative inline-flex items-center justify-center">
+                                <button
+                                  type="button"
+                                  onClick={() => closeSyncPrompt()}
+                                  aria-label="Do not sync with Google Calendar"
+                                  className="flex items-center justify-center bg-transparent border-0 text-rose-400 hover:text-rose-300 hover:scale-125 transition-transform p-1 cursor-pointer focus:outline-none"
+                                >
+                                  <X className="h-5 w-5 stroke-[2.5]" />
+                                </button>
+                                <div role="tooltip" className="pointer-events-none absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 z-50 rounded-lg border border-rose-500/35 bg-[#0D151D]/95 backdrop-blur-xl px-2.5 py-0.5 text-[10px] font-medium text-rose-200 opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.6),0_0_12px_rgba(244,63,94,0.25)] transition-all duration-150 group-hover/cancel:translate-y-0 group-hover/cancel:opacity-100 -translate-y-1 whitespace-nowrap">
+                                  <span>Cancel</span>
+                                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 border-l border-t border-rose-500/35 bg-[#0D151D]" />
+                                </div>
+                              </div>
+                              <div className="group/sync relative inline-flex items-center justify-center">
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -4328,7 +4388,10 @@ export default function Home() {
                                           scopes: GOOGLE_CALENDAR_SCOPES,
                                           additionalParams: {
                                             access_type: "offline",
-                                            prompt: "select_account consent",
+                                            prompt: "consent",
+                                            ...(authSession.user.email
+                                              ? { login_hint: authSession.user.email }
+                                              : {}),
                                           },
                                         });
                                         if (scopeResult?.error) {
@@ -4343,7 +4406,9 @@ export default function Home() {
                                         return;
                                       }
 
-                                      const popupResult = await startGoogleSignInPopup();
+                                      const popupResult = await startGoogleSignInPopup(
+                                        authSession?.user?.email,
+                                      );
 
                                       if (popupResult?.error) {
                                         closeSyncPrompt();
@@ -4386,11 +4451,14 @@ export default function Home() {
                                     }
                                   }}
                                   aria-label="Yes, sync with Google Calendar"
-                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-teal-300/40 bg-teal-400/10 px-4 py-2 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  className="flex items-center justify-center bg-transparent border-0 text-emerald-400 hover:text-emerald-300 hover:scale-125 transition-transform p-1 cursor-pointer focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <Check className="h-4 w-4 stroke-[2.5]" />
-                                  Yes
+                                  <Check className="h-5 w-5 stroke-[2.5]" />
                                 </button>
+                                <div role="tooltip" className="pointer-events-none absolute top-[calc(100%+0.5rem)] left-1/2 -translate-x-1/2 z-50 rounded-lg border border-teal-400/35 bg-[#0D151D]/95 backdrop-blur-xl px-2.5 py-0.5 text-[10px] font-medium text-teal-200 opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.6),0_0_12px_rgba(94,234,212,0.25)] transition-all duration-150 group-hover/sync:translate-y-0 group-hover/sync:opacity-100 -translate-y-1 whitespace-nowrap">
+                                  <span>Sync</span>
+                                  <span className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 border-l border-t border-teal-400/35 bg-[#0D151D]" />
+                                </div>
                               </div>
                             </div>
                           )}

@@ -74,8 +74,11 @@ export default async function RootLayout({
         <link rel="icon" href="/icon.svg?v=2" type="image/svg+xml" />
       </head>
       <body className={`${plusJakartaSans.variable} ${inter.variable} ${jetBrainsMono.variable}`}>
+        {/* Browsers intentionally hide nonce attributes from HTML attribute reads
+            during hydration. Suppress only this expected mismatch; keep the CSP nonce. */}
         <script
           nonce={nonce}
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `(() => {
               const root = document.documentElement;
