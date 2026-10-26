@@ -1518,7 +1518,7 @@ export default function Home() {
             additionalParams: {
               access_type: "offline",
               prompt: "consent",
-              ...(authSession.user.email ? { login_hint: authSession.user.email } : {}),
+              ...(authSession?.user?.email ? { login_hint: authSession.user.email } : {}),
             },
           });
           if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
