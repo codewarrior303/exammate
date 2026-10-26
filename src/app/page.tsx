@@ -547,7 +547,6 @@ export default function Home() {
   const rowRevealIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [calendarEventLinks, setCalendarEventLinks] = useState<Array<{ title: string; url: string }>>([]);
   const [savedNotice, setSavedNotice] = useState("");
   const [googleLoading, setGoogleLoading] = useState(false);
   const [googleDisconnecting, setGoogleDisconnecting] = useState(false);
@@ -1022,7 +1021,6 @@ export default function Home() {
     )
       return false;
     setCalendarSyncing(true);
-    setCalendarEventLinks([]);
     try {
       const response = await fetch("/api/calendar/sync", {
         method: "POST",
@@ -1068,16 +1066,7 @@ export default function Home() {
         throw new Error("Calendar did not confirm every event. Please sync again.");
       }
       setHasCalendarScope(true);
-      const count = result.synced;
-      setCalendarEventLinks(
-        result.events.map((event, index) => ({
-          title: event.title || `Exam ${index + 1}`,
-          url: event.url || "",
-        })).filter((event) => event.url),
-      );
-      setMessage(
-        `${count} exam${count === 1 ? "" : "s"} saved to ${result.calendarEmail || "the connected Google Calendar"}. Open an event below to verify.`,
-      );
+      setMessage("");
       return true;
     } catch (syncError) {
       lastCalendarSyncRef.current = "";
@@ -1086,7 +1075,6 @@ export default function Home() {
           ? syncError.message
           : "Calendar sync failed.",
       );
-      setCalendarEventLinks([]);
       return false;
     } finally {
       setCalendarSyncing(false);
@@ -4736,18 +4724,6 @@ export default function Home() {
               <span className="text-left whitespace-normal break-words [overflow-wrap:anywhere]">
                 {message}
               </span>
-              {calendarEventLinks.map((event, index) => (
-                <a
-                  key={`${event.url}-${index}`}
-                  href={event.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="shrink-0 text-teal-200 underline underline-offset-2 hover:text-white"
-                  aria-label={`Open synced Calendar event: ${event.title}`}
-                >
-                  Open {index + 1}
-                </a>
-              ))}
               <button
                 type="button"
                 onClick={() => setMessage("")}
