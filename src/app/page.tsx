@@ -1743,8 +1743,9 @@ export default function Home() {
           }
 
           await syncCalendar(matches);
-        } else if (isConnected && !calendarPermissionGranted) {
-          // Ask before requesting Calendar permission from the connected account.
+        } else {
+          // If calendar permission is not granted (new user or connected without calendar scope):
+          // Show the in-table frosted glass popup so user can choose to sync or cancel.
           setShowCalendarSyncPrompt(false);
           setIsSyncPromptClosing(false);
           if (syncPromptTimeoutRef.current) {
@@ -1754,15 +1755,6 @@ export default function Home() {
             setShowCalendarSyncPrompt(true);
             setIsSyncPromptClosing(false);
           }, 1200);
-        } else {
-          // Scenario C: Google is NOT connected at all:
-          // No in-table popup dialog! Navbar Google Connect button remains ready and active for the user.
-          setShowCalendarSyncPrompt(false);
-          setIsSyncPromptClosing(false);
-          if (syncPromptTimeoutRef.current) {
-            clearTimeout(syncPromptTimeoutRef.current);
-            syncPromptTimeoutRef.current = null;
-          }
         }
       } finally {
         setIsRevealingRows(false);
@@ -1906,22 +1898,33 @@ export default function Home() {
       setError("Google sync is disabled for sample routines.");
       return;
     }
-    if (!isRealRoutineGenerated && !isLinkActive) {
-      setError("Please generate a routine before connecting Google.");
-      return;
-    }
     setError("");
-    if (generatedExams.length === 0) {
-      setError("Generate a routine with matched exams before connecting Calendar.");
-      return;
-    }
-    setShowCalendarSyncPrompt(true);
-    window.setTimeout(() => {
-      document.getElementById("results")?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
+    setGoogleLoading(true);
+    try {
+      if (generatedExams.length > 0) {
+        try {
+          window.localStorage.setItem(
+            "examMate:pendingCalendarSync",
+            Date.now().toString(),
+          );
+          window.sessionStorage.setItem(
+            "examMate:pendingCalendarSync",
+            "true",
+          );
+        } catch {
+          // ignore
+        }
+      }
+      const authResult = await startGoogleSignIn({
+        requireDrive: isLinkActive,
       });
-    }, 0);
+      if (authResult?.error) {
+        throw new Error(authResult.error.message || "Google sign-in failed.");
+      }
+    } catch (err) {
+      setGoogleLoading(false);
+      setError(err instanceof Error ? err.message : "Google sign-in failed.");
+    }
   }
 
   async function handleGoogleDisconnect() {
