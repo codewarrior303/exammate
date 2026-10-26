@@ -284,18 +284,6 @@ async function startGoogleSignIn(options?: { requireDrive?: boolean }) {
   });
 }
 
-async function startGoogleSignInPopup(loginHint?: string | null) {
-  return (authClient.signIn as any).popup({
-    provider: "google",
-    scopes: GOOGLE_CALENDAR_SCOPES,
-    additionalParams: {
-      access_type: "offline",
-      prompt: "consent",
-      ...(loginHint ? { login_hint: loginHint } : {}),
-    },
-  });
-}
-
 function CustomScrollbar() {
   const thumbRef = useRef<HTMLDivElement | null>(null);
   const dragRef = useRef<{ pointerY: number; scrollTop: number } | null>(null);
@@ -1522,13 +1510,14 @@ export default function Home() {
           setGenerating(false);
           setGoogleLoading(true);
           setMessage("Allow Drive access for your university Google account to continue.");
-          const authResult = await authClient.linkSocial({
+          const authResult = await authClient.signIn.social({
             provider: "google",
             callbackURL: "/",
+            errorCallbackURL: "/?auth_error=google_oauth",
             scopes: GOOGLE_DRIVE_SCOPES,
             additionalParams: {
               access_type: "offline",
-              prompt: "consent",
+              prompt: authSession?.user ? "consent" : "select_account consent",
               ...(authSession?.user?.email ? { login_hint: authSession.user.email } : {}),
             },
           });
@@ -1559,29 +1548,19 @@ export default function Home() {
             setGenerating(false);
             setGoogleLoading(true);
             setMessage("Connect the Google account that has access to this Drive file.");
-            const authResult = authSession?.user
-              ? await authClient.linkSocial({
-                  provider: "google",
-                  callbackURL: "/",
-                  scopes: GOOGLE_DRIVE_SCOPES,
-                  additionalParams: {
-                    access_type: "offline",
-                    prompt: "consent",
-                    ...(authSession.user.email
-                      ? { login_hint: authSession.user.email }
-                      : {}),
-                  },
-                })
-              : await authClient.signIn.social({
-                  provider: "google",
-                  callbackURL: "/",
-                  errorCallbackURL: "/?auth_error=google_oauth",
-                  scopes: GOOGLE_DRIVE_SCOPES,
-                  additionalParams: {
-                    access_type: "offline",
-                    prompt: "select_account consent",
-                  },
-                });
+            const authResult = await authClient.signIn.social({
+              provider: "google",
+              callbackURL: "/",
+              errorCallbackURL: "/?auth_error=google_oauth",
+              scopes: GOOGLE_DRIVE_SCOPES,
+              additionalParams: {
+                access_type: "offline",
+                prompt: authSession?.user ? "consent" : "select_account consent",
+                ...(authSession?.user?.email
+                  ? { login_hint: authSession.user.email }
+                  : {}),
+              },
+            });
             if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
             return;
           } catch (authorizationError) {
@@ -4538,68 +4517,33 @@ export default function Home() {
                                         return;
                                       }
 
-                                      if (authSession && !hasCalendarScope) {
-                                        window.sessionStorage.setItem(
-                                          "examMate:pendingCalendarSync",
-                                          "true",
-                                        );
-                                        const scopeResult = await authClient.linkSocial({
-                                          provider: "google",
-                                          callbackURL: "/",
-                                          scopes: GOOGLE_CALENDAR_SCOPES,
-                                          additionalParams: {
-                                            access_type: "offline",
-                                            prompt: "consent",
-                                            ...(authSession.user.email
-                                              ? { login_hint: authSession.user.email }
-                                              : {}),
-                                          },
-                                        });
-                                        if (scopeResult?.error) {
-                                          window.sessionStorage.removeItem(
-                                            "examMate:pendingCalendarSync",
-                                          );
-                                          throw new Error(
-                                            scopeResult.error.message ||
-                                              "Calendar permission was not granted.",
-                                          );
-                                        }
-                                        return;
-                                      }
-
-                                      const popupResult = await startGoogleSignInPopup(
-                                        authSession?.user?.email,
+                                      window.sessionStorage.setItem(
+                                        "examMate:pendingCalendarSync",
+                                        "true",
                                       );
-
-                                      if (popupResult?.error) {
-                                        closeSyncPrompt();
-                                        if (
-                                          popupResult.error.code ===
-                                          "POPUP_CLOSED"
-                                        ) {
-                                          return;
-                                        }
-                                        if (
-                                          popupResult.error.code ===
-                                          "POPUP_BLOCKED"
-                                        ) {
-                                          setError(
-                                            "Popup blocked. Please allow popups for ExamMate.",
-                                          );
-                                          return;
-                                        }
+                                      const authResult = await authClient.signIn.social({
+                                        provider: "google",
+                                        callbackURL: "/",
+                                        errorCallbackURL: "/?auth_error=google_oauth",
+                                        scopes: GOOGLE_CALENDAR_SCOPES,
+                                        additionalParams: {
+                                          access_type: "offline",
+                                          prompt: authSession?.user ? "consent" : "select_account consent",
+                                          ...(authSession?.user?.email
+                                            ? { login_hint: authSession.user.email }
+                                            : {}),
+                                        },
+                                      });
+                                      if (authResult?.error) {
+                                        window.sessionStorage.removeItem(
+                                          "examMate:pendingCalendarSync",
+                                        );
                                         throw new Error(
-                                          popupResult.error.message ||
-                                            "Google authorization failed.",
+                                          authResult.error.message ||
+                                            "Calendar permission was not granted.",
                                         );
                                       }
-
-                                      const ok =
-                                        await syncCalendar(generatedExams);
-                                      closeSyncPrompt();
-                                      if (ok) {
-                                        setHasCalendarScope(true);
-                                      }
+                                      return;
                                     } catch (err) {
                                       closeSyncPrompt();
                                       setError(

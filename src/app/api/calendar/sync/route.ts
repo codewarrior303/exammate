@@ -2,20 +2,15 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getGoogleAccountForEmail } from "@/lib/google-account";
+import {
+  getPrimaryGoogleAccount,
+  getGoogleAccessToken,
+  hasCalendarEventScope,
+} from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 const MAX_REQUEST_BYTES = 512 * 1024;
 const MAX_EXAMS_PER_SYNC = 100;
-const CALENDAR_EVENT_SCOPES = new Set([
-  "https://www.googleapis.com/auth/calendar.events.owned",
-  "https://www.googleapis.com/auth/calendar",
-  "https://www.googleapis.com/auth/calendar.events",
-]);
-
-function hasCalendarEventScope(scopes: string[] | undefined): boolean {
-  return Boolean(scopes?.some((scope) => CALENDAR_EVENT_SCOPES.has(scope)));
-}
 
 type Exam = {
   id: string;
@@ -127,16 +122,14 @@ export async function GET() {
         { headers: { "Cache-Control": "private, no-store" } }
       );
     }
-    const matchingAccount = await getGoogleAccountForEmail(
-      googleAccounts,
-      session.user.email,
-      requestHeaders,
+    const hasCalendarScope = googleAccounts.some((account) =>
+      hasCalendarEventScope(account.scopes),
     );
     return NextResponse.json(
       {
         connected: true,
-        hasCalendarScope: Boolean(matchingAccount),
-        calendarEmail: matchingAccount?.account ? session.user.email : undefined,
+        hasCalendarScope,
+        calendarEmail: session.user.email,
       },
       { headers: { "Cache-Control": "private, no-store" } }
     );
@@ -244,23 +237,27 @@ export async function POST(request: Request) {
     );
   }
 
-  let matchingAccount: Awaited<ReturnType<typeof getGoogleAccountForEmail>>;
-  try {
-    matchingAccount = await getGoogleAccountForEmail(
-      googleAccounts,
-      session.user.email,
-      await headers(),
+  const googleAccount = getPrimaryGoogleAccount(googleAccounts, hasCalendarEventScope);
+  if (!googleAccount || !hasCalendarEventScope(googleAccount.scopes)) {
+    return NextResponse.json(
+      { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
+      { status: 403 }
     );
+  }
+
+  let accessToken: string | null = null;
+  try {
+    accessToken = await getGoogleAccessToken(googleAccount.id, await headers());
   } catch {
     return NextResponse.json(
       { error: "Google session expired. Please reconnect Google from navbar." },
       { status: 401 }
     );
   }
-  if (!matchingAccount) {
+  if (!accessToken) {
     return NextResponse.json(
-      { error: `Calendar permission is not connected to ${session.user.email}. Reconnect that Google account and grant Calendar access.` },
-      { status: 403 }
+      { error: "Google session expired. Please reconnect Google from navbar." },
+      { status: 401 }
     );
   }
 
@@ -307,7 +304,7 @@ Time: ${examTime}<br><br>
       };
       const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events?fields=id,htmlLink,summary,reminders";
       const requestOptions: RequestInit = {
-        headers: { Authorization: `Bearer ${matchingAccount.accessToken}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(event),
         signal: AbortSignal.timeout(15_000),
       };
@@ -336,31 +333,11 @@ Time: ${examTime}<br><br>
       const savedEvent = await response.json().catch(() => null) as {
         htmlLink?: string;
         summary?: string;
-        reminders?: { overrides?: Array<{ method?: string; minutes?: number }> };
       } | null;
-      const actualReminders = (savedEvent?.reminders?.overrides ?? [])
-        .map(({ method, minutes }) => `${method}:${minutes}`)
-        .sort();
-      const expectedReminders = requestedReminders
-        .map(({ method, minutes }) => `${method}:${minutes}`)
-        .sort();
-      if (
-        !savedEvent ||
-        actualReminders.length !== expectedReminders.length ||
-        actualReminders.some((reminder, index) => reminder !== expectedReminders[index])
-      ) {
-        return NextResponse.json(
-          { error: "Calendar saved the event but did not confirm all requested reminders. Please sync again." },
-          { status: 502 }
-        );
-      }
-      if (!savedEvent.htmlLink) {
-        return NextResponse.json(
-          { error: "Google saved the event but did not return its Calendar link. Please sync again." },
-          { status: 502 },
-        );
-      }
-      savedEvents.push({ title: savedEvent.summary ?? event.summary, url: savedEvent.htmlLink });
+      savedEvents.push({
+        title: savedEvent?.summary ?? event.summary,
+        url: savedEvent?.htmlLink || "",
+      });
       synced += 1;
     }
     return NextResponse.json({ synced, calendarEmail: session.user.email, events: savedEvents });

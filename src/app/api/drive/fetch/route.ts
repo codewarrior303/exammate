@@ -1,7 +1,11 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { getGoogleAccountForEmail } from "@/lib/google-account";
+import {
+  getPrimaryGoogleAccount,
+  getGoogleAccessToken,
+  hasDriveReadScope,
+} from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export const runtime = "nodejs";
@@ -559,10 +563,6 @@ async function downloadWithGoogleDriveApi(
   return { buffer, ext: isNativeSheet ? "xlsx" : sniffExtension(buffer) };
 }
 
-function hasDriveReadScope(scopes: string[] | undefined): boolean {
-  return Boolean(scopes?.includes("https://www.googleapis.com/auth/drive.readonly"));
-}
-
 export async function GET() {
   try {
     const requestHeaders = await headers();
@@ -570,12 +570,10 @@ export async function GET() {
     const accounts = session
       ? await auth.api.listUserAccounts({ headers: requestHeaders })
       : [];
-    const matchingAccount = session
-      ? await getGoogleAccountForEmail(accounts, session.user.email, requestHeaders)
-      : null;
-    const hasDriveScope = hasDriveReadScope(matchingAccount?.account.scopes);
+    const googleAccount = getPrimaryGoogleAccount(accounts, hasDriveReadScope);
+    const hasDriveScope = hasDriveReadScope(googleAccount?.scopes);
     return NextResponse.json(
-      { connected: Boolean(session && matchingAccount), hasDriveScope },
+      { connected: Boolean(session && googleAccount), hasDriveScope },
       { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
     );
   } catch {
@@ -657,26 +655,22 @@ export async function POST(request: Request) {
       session = await auth.api.getSession({ headers: requestHeaders });
       if (session) {
         const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-        const matchingAccount = await getGoogleAccountForEmail(
-          accounts,
-          session.user.email,
-          requestHeaders,
-        );
-        googleAccount = matchingAccount?.account;
-        if (matchingAccount?.accessToken) {
-          const privateResult = hasDriveReadScope(googleAccount?.scopes)
-            ? await downloadWithGoogleDriveApi(target.id, matchingAccount.accessToken)
-            : null;
-          if (privateResult) {
-            return new Response(privateResult.buffer as unknown as BodyInit, {
-              headers: {
-                "Content-Type": "application/octet-stream",
-                "X-File-Name": `drive-routine.${privateResult.ext}`,
-                "Cache-Control": "private, no-store",
-                "Vary": "Cookie",
-                "X-Content-Type-Options": "nosniff",
-              },
-            });
+        googleAccount = getPrimaryGoogleAccount(accounts, hasDriveReadScope);
+        if (googleAccount && hasDriveReadScope(googleAccount.scopes)) {
+          const accessToken = await getGoogleAccessToken(googleAccount.id, requestHeaders);
+          if (accessToken) {
+            const privateResult = await downloadWithGoogleDriveApi(target.id, accessToken);
+            if (privateResult) {
+              return new Response(privateResult.buffer as unknown as BodyInit, {
+                headers: {
+                  "Content-Type": "application/octet-stream",
+                  "X-File-Name": `drive-routine.${privateResult.ext}`,
+                  "Cache-Control": "private, no-store",
+                  "Vary": "Cookie",
+                  "X-Content-Type-Options": "nosniff",
+                },
+              });
+            }
           }
         }
       }
