@@ -35,16 +35,18 @@ export default function PrivacyPage() {
               trust.
             </li>
             <li>
-              <strong>Shared Google Drive or Sheets links:</strong> when you
-              submit a link, our server fetches the publicly accessible,
-              link-shared file and temporarily handles its contents in memory
-              to return it to your browser for parsing. Private links are not
-              opened using your Google account. We do not intentionally save
-              the file or submitted link in our application database. Anyone
-              with the link must be able to view the file; otherwise, upload
-              the spreadsheet from your device. ExamMate never asks you to
-              enter a Google password or paste a Google sign-in link into the
-              importer.
+              <strong>Google Drive or Sheets links:</strong> public links can
+              be fetched without signing in. To import a private file, you may
+              choose to connect the Google account that can access it and
+              grant the separate Drive read permission. The server uses the
+              file ID in the link you submitted to request that one file from
+              Google Drive; it does not search or list your Drive, modify or
+              share files, or send your OAuth token to the submitted URL. The
+              file is temporarily handled in server memory and returned to
+              your browser for parsing. ExamMate does not intentionally retain
+              the file or submitted link in its application database. You can
+              instead upload the file from your device. Never enter a Google
+              password or paste a sign-in link into the importer.
             </li>
             <li>
               <strong>Routine and course selections:</strong> the schedule you
@@ -60,6 +62,26 @@ export default function PrivacyPage() {
               ExamMate does not receive your Google password.
             </li>
           </ul>
+        </section>
+
+        <section className="rounded-xl border border-teal-500/15 bg-teal-950/20 p-4 sm:p-5">
+          <h2 className="mb-2 flex items-center gap-2 text-base font-semibold text-white">
+            <span className="h-2 w-2 rounded-full bg-teal-400" />
+            Optional Google Drive access
+          </h2>
+          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
+            Private Drive import is optional. When you request it, ExamMate
+            asks Google for <code>https://www.googleapis.com/auth/drive.readonly</code>.
+            Google defines this scope as read access to Drive files available
+            to the authorized account. In ExamMate, the import endpoint is
+            limited to the single file ID in the link you pasted; it does not
+            enumerate or search Drive, or edit, delete, or share files. Google
+            OAuth tokens are encrypted in the server-side account store and
+            are never placed in browser local storage. Imported file contents
+            are handled temporarily to parse the routine and are not saved as
+            an ExamMate file. Public link import and device upload remain
+            available without Drive OAuth.
+          </p>
         </section>
 
         <section className="rounded-xl border border-teal-500/15 bg-teal-950/20 p-4 sm:p-5">

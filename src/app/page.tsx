@@ -225,12 +225,31 @@ function normalizeDriveLink(val: string): string {
   return `https://${trimmed}`;
 }
 
-const GOOGLE_CALENDAR_SCOPES = [
+const GOOGLE_IDENTITY_SCOPES = [
   "openid",
   "email",
   "profile",
+];
+
+const GOOGLE_DRIVE_SCOPES = [
+  ...GOOGLE_IDENTITY_SCOPES,
+  "https://www.googleapis.com/auth/drive.readonly",
+];
+
+const GOOGLE_CALENDAR_SCOPES = [
+  ...GOOGLE_IDENTITY_SCOPES,
   "https://www.googleapis.com/auth/calendar.events.owned",
 ];
+
+const PENDING_DRIVE_IMPORT_KEY = "examMate:pendingDriveImport";
+
+class DriveAuthorizationRequiredError extends Error {
+  readonly requiresGoogleAuth = true;
+  constructor(message: string) {
+    super(message);
+    this.name = "DriveAuthorizationRequiredError";
+  }
+}
 
 async function startGoogleSignInPopup() {
   return (authClient.signIn as any).popup({
@@ -674,6 +693,52 @@ export default function Home() {
     };
   }, [authSession]);
 
+  // Resume only the import explicitly initiated before the Google redirect.
+  // The sessionStorage record contains the pasted link and course codes, never tokens.
+  useEffect(() => {
+    if (!authSession?.user || !isHydrated || typeof window === "undefined") return;
+    let cancelled = false;
+    void (async () => {
+      type PendingDriveImport = { url?: unknown; courses?: unknown; createdAt?: unknown };
+      let pending: PendingDriveImport | null = null;
+      try {
+        const raw = window.sessionStorage.getItem(PENDING_DRIVE_IMPORT_KEY);
+        if (!raw) return;
+        pending = JSON.parse(raw) as PendingDriveImport;
+      } catch {
+        window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+        return;
+      }
+      const url = typeof pending?.url === "string" ? pending.url : "";
+      const courses = typeof pending?.courses === "string" ? pending.courses : "";
+      const createdAt = Number(pending?.createdAt);
+      if (!url || !isGoogleDriveLink(url) || !Number.isFinite(createdAt) || Date.now() - createdAt > 10 * 60_000) {
+        window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+        return;
+      }
+      try {
+        const response = await fetch("/api/drive/fetch", { cache: "no-store" });
+        const access = await response.json() as { hasDriveScope?: boolean };
+        if (cancelled) return;
+        if (!access.hasDriveScope) {
+          window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+          setError("Google Drive permission was not granted. Reconnect Google and allow Drive file access to import this private link.");
+          return;
+        }
+        window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+        setDriveLink(url);
+        if (courses) setCourseInput(courses);
+        window.setTimeout(() => void handleGenerate(url, courses), 250);
+      } catch {
+        if (!cancelled) {
+          window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+          setError("Could not confirm Google Drive access. Please try connecting Google again.");
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [authSession, isHydrated]);
+
   // A routine may already exist when the user finishes Google authorization.
   // Sync it once after both the saved routine and Calendar scope are available.
   useEffect(() => {
@@ -1116,7 +1181,15 @@ export default function Home() {
       body: JSON.stringify({ url: link }),
     });
     if (!response.ok) {
-      const details = (await response.json().catch(() => ({}))) as { error?: string };
+      const details = (await response.json().catch(() => ({}))) as {
+        error?: string;
+        requiresGoogleAuth?: boolean;
+      };
+      if (details.requiresGoogleAuth) {
+        throw new DriveAuthorizationRequiredError(
+          details.error || "Connect the Google account that can access this Drive file.",
+        );
+      }
       throw new Error(details.error || "Could not read Google Drive link.");
     }
     const blob = await response.blob();
@@ -1220,8 +1293,8 @@ export default function Home() {
     input?.focus();
   }
 
-  async function handleGenerate() {
-    const link = driveLink.trim();
+  async function handleGenerate(linkOverride?: string, coursesOverride?: string) {
+    const link = (linkOverride ?? driveLink).trim();
     if (!link && !allExams.length) {
       setError("Upload a routine file or paste a Drive link.");
       return;
@@ -1234,7 +1307,7 @@ export default function Home() {
     const pendingDraft = courseDraft.trim().toUpperCase();
     let effectiveSelectedCodes = Array.from(
       new Set(
-        courseInput
+        (coursesOverride ?? courseInput)
           .split(/[\n,]+/)
           .map((v) => v.trim().toUpperCase())
           .filter((v) => Boolean(v) && isFullCourseCode(v))
@@ -1285,6 +1358,40 @@ export default function Home() {
         setAllExams(sourceExams);
         setFileName("Google Drive link");
       } catch (driveError) {
+        if (driveError instanceof DriveAuthorizationRequiredError) {
+          try {
+            window.sessionStorage.setItem(PENDING_DRIVE_IMPORT_KEY, JSON.stringify({
+              url: link,
+              courses: effectiveSelectedCodes.join(", "),
+              createdAt: Date.now(),
+            }));
+            setGenerating(false);
+            setGoogleLoading(true);
+            setMessage("Connect the Google account that has access to this Drive file.");
+            const authResult = authSession?.user
+              ? await authClient.linkSocial({
+                  provider: "google",
+                  callbackURL: "/",
+                  scopes: GOOGLE_DRIVE_SCOPES,
+                  additionalParams: { access_type: "offline", prompt: "select_account consent" },
+                })
+              : await authClient.signIn.social({
+                  provider: "google",
+                  callbackURL: "/",
+                  errorCallbackURL: "/?auth_error=google_oauth",
+                  scopes: GOOGLE_DRIVE_SCOPES,
+                  additionalParams: { access_type: "offline", prompt: "select_account consent" },
+                });
+            if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
+            return;
+          } catch (authorizationError) {
+            window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+            setGoogleLoading(false);
+            setMessage("");
+            setError(authorizationError instanceof Error ? authorizationError.message : "Could not connect Google Drive.");
+            return;
+          }
+        }
         setError(
           driveError instanceof Error
             ? driveError.message
@@ -1563,6 +1670,7 @@ export default function Home() {
           window.localStorage.removeItem("examMate:routine:v1");
           window.localStorage.removeItem("examMate:savedDriveLink");
           window.sessionStorage.removeItem("examMate:routineSource");
+          window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
           window.sessionStorage.removeItem("examMate:pendingCalendarSync");
           window.sessionStorage.removeItem("examMate:justConnectedGoogle");
         }
@@ -2010,20 +2118,19 @@ export default function Home() {
       answer: (
         <span className="space-y-2 block">
           <span>
-            Paste a Google Drive or Sheets link that is shared as Anyone with
-            the link can view, or upload the routine file from your device.
-            Drive-link import does not ask for Google Drive access or require
-            Google sign-in. Private files cannot be fetched through a link.
+            Paste a Google Drive or Sheets file link. Public links work without
+            sign-in. For a private file, connect the Google account that can
+            access it and grant the separate, read-only Drive permission.
+            Calendar permission is optional and is requested separately.
           </span>
           <span className="block text-slate-400">
-            For a shared link, ExamMate&apos;s server temporarily fetches and
-            returns the linked file to your browser for parsing. We do not
-            intentionally retain the file or link in our application database.
-            Only paste a link copied from drive.google.com, docs.google.com, or
-            sheets.google.com. Never enter your Google password or share a
-            sign-in link here. Review files from people you trust; uploaded
-            spreadsheets are parsed as data and macros are not run. See the
-            Privacy Policy for details.
+            ExamMate uses Drive access only to read the file ID in the link you
+            submitted; it does not search or list your Drive, modify files, or
+            share them. The server temporarily returns the file to your browser
+            for parsing and does not intentionally retain the file or link in
+            its application database. Only paste a link from
+            drive.google.com, docs.google.com, or sheets.google.com. Never
+            enter your Google password here. See the Privacy Policy for details.
           </span>
         </span>
       ),
@@ -2065,9 +2172,9 @@ export default function Home() {
         <span className="space-y-2 block">
           <span>
             Uploaded files are parsed in your browser. Generated schedules are
-            saved in your browser for 15 days. Shared Drive links are fetched
-            temporarily by our server; Google account and encrypted OAuth token
-            records are stored server-side while Google is connected.
+            saved in your browser for 15 days. Drive imports are limited to
+            files explicitly identified by links submitted by you; encrypted
+            OAuth records stay server-side while Google is connected.
           </span>
           <span className="block text-slate-300">
             ExamMate&apos;s use and transfer of information received from Google
@@ -4157,26 +4264,8 @@ export default function Home() {
                             </div>
                           ) : (
                             <span className="text-xs sm:text-[13px] font-semibold text-white tracking-wide whitespace-nowrap transition-all duration-300">
-                              Sync with Google Calendar?
+                              Sync this routine with Google Calendar?
                             </span>
-                          )}
-
-                          {!calendarSyncing && (
-                            <p className="max-w-xs text-left text-[10px] leading-relaxed text-slate-300 sm:text-[11px]">
-                              Google grants ExamMate access to events on
-                              calendars you own. ExamMate uses this to create
-                              or update its exam events in your primary
-                              calendar. Selected exam details are sent to
-                              Google. Later routines can sync automatically
-                              while connected; disconnecting does not remove
-                              events.
-                              <Link
-                                href="/privacy"
-                                className="ml-1 text-teal-300 underline underline-offset-2"
-                              >
-                                Privacy details
-                              </Link>
-                            </p>
                           )}
 
                           {/* Body: Either Circular Loader OR Action Buttons */}
@@ -4203,30 +4292,17 @@ export default function Home() {
                               </span>
                             </div>
                           ) : (
-                            /* 2 icon buttons: Cross & Correct with custom frosted glass tooltips */
-                            <div className="flex items-center justify-center gap-6 transition-all duration-300">
-                              {/* Cross Button: Cancel / Do not sync */}
-                              <div className="group/cancel relative inline-flex items-center justify-center">
-                                <button
-                                  type="button"
-                                  onClick={() => closeSyncPrompt()}
-                                  aria-label="Do not sync with Google Calendar"
-                                  className="flex items-center justify-center bg-transparent border-0 text-rose-400 hover:text-rose-200 hover:bg-rose-500/20 hover:shadow-[0_0_12px_rgba(244,63,94,0.3)] rounded-lg transition-all duration-150 p-1.5 cursor-pointer focus:outline-none"
-                                >
-                                  <X className="h-5 w-5 stroke-[2.5]" />
-                                </button>
-                                <div
-                                  role="tooltip"
-                                  className="pointer-events-none absolute top-[calc(100%+0.55rem)] left-1/2 -translate-x-1/2 z-50 rounded-lg border border-rose-500/35 bg-[#0A1822]/95 backdrop-blur-xl px-2.5 py-1 text-[10px] font-semibold tracking-wide text-rose-200 opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.6),0_0_12px_rgba(244,63,94,0.25)] transition-all duration-150 group-hover/cancel:translate-y-0 group-hover/cancel:opacity-100 -translate-y-1 whitespace-nowrap flex items-center gap-1.5"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-rose-400 shadow-[0_0_6px_rgba(244,63,94,0.8)]" />
-                                  <span>Don't sync</span>
-                                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 border-l border-t border-rose-500/35 bg-[#0A1822]" />
-                                </div>
-                              </div>
-
-                              {/* Correct Button: Confirm sync */}
-                              <div className="group/sync relative inline-flex items-center justify-center">
+                            <div className="flex items-center justify-center gap-3 transition-all duration-300">
+                              <button
+                                type="button"
+                                onClick={() => closeSyncPrompt()}
+                                aria-label="No, do not sync with Google Calendar"
+                                className="inline-flex items-center justify-center gap-2 rounded-lg border border-rose-400/25 px-4 py-2 text-xs font-semibold text-rose-200 transition-colors hover:bg-rose-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300"
+                              >
+                                <X className="h-4 w-4" />
+                                No
+                              </button>
+                              <div className="relative inline-flex items-center justify-center">
                                 <button
                                   type="button"
                                   onClick={async () => {
@@ -4309,19 +4385,12 @@ export default function Home() {
                                       setCalendarSyncing(false);
                                     }
                                   }}
-                                  aria-label="Sync to Google Calendar"
-                                  className="flex items-center justify-center bg-transparent border-0 text-emerald-400 hover:text-emerald-200 hover:bg-emerald-500/20 hover:shadow-[0_0_12px_rgba(52,211,153,0.3)] rounded-lg transition-all duration-150 p-1.5 cursor-pointer focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed"
+                                  aria-label="Yes, sync with Google Calendar"
+                                  className="inline-flex items-center justify-center gap-2 rounded-lg border border-teal-300/40 bg-teal-400/10 px-4 py-2 text-xs font-semibold text-teal-100 transition-colors hover:bg-teal-300/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-300 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
-                                  <Check className="h-5 w-5 stroke-[2.5]" />
+                                  <Check className="h-4 w-4 stroke-[2.5]" />
+                                  Yes
                                 </button>
-                                <div
-                                  role="tooltip"
-                                  className="pointer-events-none absolute top-[calc(100%+0.55rem)] left-1/2 -translate-x-1/2 z-50 rounded-lg border border-teal-400/35 bg-[#0A1822]/95 backdrop-blur-xl px-2.5 py-1 text-[10px] font-semibold tracking-wide text-teal-200 opacity-0 shadow-[0_8px_20px_rgba(0,0,0,0.6),0_0_12px_rgba(94,234,212,0.25)] transition-all duration-150 group-hover/sync:translate-y-0 group-hover/sync:opacity-100 -translate-y-1 whitespace-nowrap flex items-center gap-1.5"
-                                >
-                                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]" />
-                                  <span>Sync to Calendar</span>
-                                  <div className="absolute -top-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rotate-45 border-l border-t border-teal-400/35 bg-[#0A1822]" />
-                                </div>
                               </div>
                             </div>
                           )}

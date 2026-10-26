@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
+import { auth } from "@/lib/auth";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export const runtime = "nodejs";
@@ -177,7 +179,7 @@ function isHtmlPayload(bytes: Uint8Array): boolean {
 
 function extractHtmlError(html: string, hadLoginRedirect?: boolean): string {
   if (hadLoginRedirect) {
-    return "Private Drive link. Set access to 'Anyone with link' or upload file.";
+    return "This Drive file needs an authorized Google account with access. Choose the account that can open it, or upload the file directly.";
   }
 
   const lower = html.toLowerCase();
@@ -188,7 +190,7 @@ function extractHtmlError(html: string, hadLoginRedirect?: boolean): string {
     lower.includes("need access") ||
     lower.includes("request access")
   ) {
-    return "Private Drive link. Set access to 'Anyone with link' or upload file.";
+    return "This Drive file needs an authorized Google account with access. Choose the account that can open it, or upload the file directly.";
   }
 
   if (
@@ -512,6 +514,74 @@ async function downloadDriveFile(
   };
 }
 
+async function downloadWithGoogleDriveApi(
+  fileId: string,
+  accessToken: string,
+): Promise<{ buffer: Uint8Array; ext: "xlsx" | "xls" | "csv" } | null> {
+  const metadataResponse = await fetch(
+    `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?fields=mimeType,size&supportsAllDrives=true`,
+    {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+      cache: "no-store",
+    },
+  );
+  if (!metadataResponse.ok) {
+    await metadataResponse.body?.cancel();
+    return null;
+  }
+
+  const metadata = await metadataResponse.json().catch(() => null) as
+    | { mimeType?: string; size?: string }
+    | null;
+  if (!metadata?.mimeType) return null;
+  const declaredSize = Number(metadata.size);
+  if (Number.isFinite(declaredSize) && declaredSize > MAX_BYTES) {
+    throw new Error("File exceeds the 15 MB limit.");
+  }
+
+  const isNativeSheet = metadata.mimeType === "application/vnd.google-apps.spreadsheet";
+  const endpoint = isNativeSheet
+    ? `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}/export?mimeType=application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+    : `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(fileId)}?alt=media&supportsAllDrives=true`;
+  const response = await fetch(endpoint, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    await response.body?.cancel();
+    return null;
+  }
+  const buffer = await readBoundedBody(response);
+  if (!buffer.byteLength || isHtmlPayload(buffer)) return null;
+  return { buffer, ext: isNativeSheet ? "xlsx" : sniffExtension(buffer) };
+}
+
+function hasDriveReadScope(scopes: string[] | undefined): boolean {
+  return Boolean(scopes?.includes("https://www.googleapis.com/auth/drive.readonly"));
+}
+
+export async function GET() {
+  try {
+    const requestHeaders = await headers();
+    const session = await auth.api.getSession({ headers: requestHeaders });
+    const accounts = session
+      ? await auth.api.listUserAccounts({ headers: requestHeaders })
+      : [];
+    const account = accounts?.find((item) => item.providerId === "google");
+    return NextResponse.json(
+      { connected: Boolean(session && account), hasDriveScope: hasDriveReadScope(account?.scopes) },
+      { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
+    );
+  } catch {
+    return NextResponse.json(
+      { connected: false, hasDriveScope: false },
+      { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
+    );
+  }
+}
+
 export async function POST(request: Request) {
   if (!isTrustedMutationRequest(request)) {
     return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
@@ -565,15 +635,61 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+  if (target.isFolder || !target.id) {
+    return NextResponse.json(
+      { error: "Paste a single Google Drive file or spreadsheet link, not a folder link." },
+      { status: 400, headers: { "Cache-Control": "private, no-store" } },
+    );
+  }
 
-  // Only public or link-shared routines are fetched. Private Drive OAuth is not
-  // requested; users can upload a file directly instead.
+  // Read only the single file ID parsed from a Google Drive URL. OAuth tokens
+  // stay server-side and are never sent to the pasted URL or its redirects.
   try {
+    let session: Awaited<ReturnType<typeof auth.api.getSession>> = null;
+    let googleAccount: Awaited<ReturnType<typeof auth.api.listUserAccounts>>[number] | undefined;
+    let requestHeaders: Headers | undefined;
+    try {
+      requestHeaders = await headers();
+      session = await auth.api.getSession({ headers: requestHeaders });
+      if (session) {
+        const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
+        googleAccount = accounts?.find((account) => account.providerId === "google");
+      }
+    } catch {
+      // Public shared links remain available if optional sign-in is unavailable.
+    }
+
+    if (session && googleAccount && hasDriveReadScope(googleAccount.scopes)) {
+      try {
+        const token = await auth.api.getAccessToken({
+          body: { accountId: googleAccount.id },
+          headers: requestHeaders!,
+        });
+        if (token?.accessToken) {
+          const privateResult = await downloadWithGoogleDriveApi(target.id, token.accessToken);
+          if (privateResult) {
+            return new Response(privateResult.buffer as unknown as BodyInit, {
+              headers: {
+                "Content-Type": "application/octet-stream",
+                "X-File-Name": `drive-routine.${privateResult.ext}`,
+                "Cache-Control": "private, no-store",
+                "Vary": "Cookie",
+                "X-Content-Type-Options": "nosniff",
+              },
+            });
+          }
+        }
+      } catch {
+        // Do not expose provider errors, file IDs, or access tokens to the client/logs.
+      }
+    }
+
     const result = await downloadDriveFile(target);
     if ("error" in result) {
       return NextResponse.json(
         {
           error: result.error,
+          requiresGoogleAuth: !session || !googleAccount || !hasDriveReadScope(googleAccount.scopes),
         },
         { status: 422 }
       );
@@ -590,7 +706,9 @@ export async function POST(request: Request) {
       headers: {
         "Content-Type": "application/octet-stream",
         "X-File-Name": `drive-routine.${result.ext}`,
-        "Cache-Control": "no-store",
+        "Cache-Control": "private, no-store",
+        "Vary": "Cookie",
+        "X-Content-Type-Options": "nosniff",
       },
     });
   } catch (err) {
