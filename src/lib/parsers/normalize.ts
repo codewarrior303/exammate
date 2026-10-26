@@ -13,7 +13,7 @@ export type ParsedExam = {
   program: string;
 };
 
-export type HeaderField =
+type HeaderField =
   | "courseCode"
   | "courseTitle"
   | "date"
@@ -25,9 +25,9 @@ export type HeaderField =
   | "section"
   | "room";
 
-export type HeaderColumns = Partial<Record<HeaderField, number>>;
+type HeaderColumns = Partial<Record<HeaderField, number>>;
 
-export const HEADER_ALIASES: Record<HeaderField, string[]> = {
+const HEADER_ALIASES: Record<HeaderField, string[]> = {
   courseCode: [
     "course code",
     "coursecode",
@@ -174,7 +174,7 @@ export const HEADER_ALIASES: Record<HeaderField, string[]> = {
   room: ["room", "room no", "room no.", "hall", "room number", "venue", "lab"],
 };
 
-export const NON_COURSE_PREFIXES = new Set([
+const NON_COURSE_PREFIXES = new Set([
   "ROOM",
   "RM",
   "SEC",
@@ -198,7 +198,7 @@ export const NON_COURSE_PREFIXES = new Set([
   "NO",
 ]);
 
-export function normalizeHeader(value: string): string {
+function normalizeHeader(value: string): string {
   return String(value ?? "")
     .trim()
     .toLowerCase()
@@ -207,7 +207,7 @@ export function normalizeHeader(value: string): string {
     .trim();
 }
 
-export function getHeaderField(value: unknown): HeaderField | undefined {
+function getHeaderField(value: unknown): HeaderField | undefined {
   const h = normalizeHeader(String(value ?? ""));
   if (!h) return undefined;
 
@@ -490,7 +490,7 @@ export function normalizeRow(raw: Record<string, unknown>): ParsedExam | null {
   };
 }
 
-export function parseTimeRange(rawValue: string, startValue = "", endValue = "") {
+function parseTimeRange(rawValue: string, startValue = "", endValue = "") {
   const cleanStart = String(startValue ?? "").trim();
   const cleanEnd = String(endValue ?? "").trim();
 
@@ -585,7 +585,7 @@ function addHoursToTimeString(timeStr: string, hoursToAdd = 2): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function normalizeTime(value: string, fallbackPeriod = ""): string {
+function normalizeTime(value: string, fallbackPeriod = ""): string {
   let trimmed = String(value ?? "").trim();
   if (!trimmed) return "";
   trimmed = trimmed.replace(/^(\d{1,2})\.(\d{2})/, "$1:$2");
@@ -711,7 +711,7 @@ export function extractCourseCodes(text: string): { raw: string; code: string }[
   return results;
 }
 
-export function extractCleanTitle(
+function extractCleanTitle(
   rowText: string,
   codeRaw = "",
   dateRaw = "",

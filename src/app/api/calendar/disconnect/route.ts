@@ -1,11 +1,21 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
-import { isTrustedMutationRequest } from "@/lib/api-security";
+import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export async function POST(request: Request) {
   if (!isTrustedMutationRequest(request)) {
     return NextResponse.json({ error: "Request origin is not allowed." }, { status: 403 });
+  }
+
+  const clientIp = getClientIp(request);
+  try {
+    const rateLimit = await checkPersistentRateLimit(`calendar_disconnect:${clientIp}`, 10, 60 * 1000);
+    if (!rateLimit.allowed) {
+      return NextResponse.json({ error: "Too many requests. Please wait a moment." }, { status: 429 });
+    }
+  } catch {
+    // continue if persistent store has a momentary error
   }
 
   try {

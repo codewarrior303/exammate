@@ -5,6 +5,7 @@ import {
   getPrimaryGoogleAccount,
   getGoogleAccessToken,
   hasDriveReadScope,
+  getVerifiedGoogleAccount,
 } from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
@@ -567,13 +568,18 @@ export async function GET() {
   try {
     const requestHeaders = await headers();
     const session = await auth.api.getSession({ headers: requestHeaders });
-    const accounts = session
-      ? await auth.api.listUserAccounts({ headers: requestHeaders })
-      : [];
-    const googleAccount = getPrimaryGoogleAccount(accounts, hasDriveReadScope);
-    const hasDriveScope = hasDriveReadScope(googleAccount?.scopes ?? (googleAccount as any)?.scope);
+    if (!session) {
+      return NextResponse.json(
+        { connected: false, hasDriveScope: false },
+        { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
+      );
+    }
+    const { googleAccount, hasDriveScope } = await getVerifiedGoogleAccount(
+      session.user.id,
+      requestHeaders,
+    );
     return NextResponse.json(
-      { connected: Boolean(session && googleAccount), hasDriveScope },
+      { connected: Boolean(googleAccount), hasDriveScope },
       { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
     );
   } catch {
@@ -648,29 +654,28 @@ export async function POST(request: Request) {
   // stay server-side and are never sent to the pasted URL or its redirects.
   try {
     let session: Awaited<ReturnType<typeof auth.api.getSession>> = null;
-    let googleAccount: Awaited<ReturnType<typeof auth.api.listUserAccounts>>[number] | undefined;
+    let googleAccount: { id: string; providerId: string; scopes?: string[]; scope?: string } | null = null;
+    let hasDriveScope = false;
     let requestHeaders: Headers | undefined;
     try {
       requestHeaders = await headers();
       session = await auth.api.getSession({ headers: requestHeaders });
       if (session) {
-        const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-        googleAccount = getPrimaryGoogleAccount(accounts, hasDriveReadScope);
-        if (googleAccount && hasDriveReadScope(googleAccount.scopes ?? (googleAccount as any).scope)) {
-          const accessToken = await getGoogleAccessToken(googleAccount.id, requestHeaders);
-          if (accessToken) {
-            const privateResult = await downloadWithGoogleDriveApi(target.id, accessToken);
-            if (privateResult) {
-              return new Response(privateResult.buffer as unknown as BodyInit, {
-                headers: {
-                  "Content-Type": "application/octet-stream",
-                  "X-File-Name": `drive-routine.${privateResult.ext}`,
-                  "Cache-Control": "private, no-store",
-                  "Vary": "Cookie",
-                  "X-Content-Type-Options": "nosniff",
-                },
-              });
-            }
+        const verified = await getVerifiedGoogleAccount(session.user.id, requestHeaders);
+        googleAccount = verified.googleAccount;
+        hasDriveScope = verified.hasDriveScope;
+        if (googleAccount && hasDriveScope && verified.accessToken) {
+          const privateResult = await downloadWithGoogleDriveApi(target.id, verified.accessToken);
+          if (privateResult) {
+            return new Response(privateResult.buffer as unknown as BodyInit, {
+              headers: {
+                "Content-Type": "application/octet-stream",
+                "X-File-Name": `drive-routine.${privateResult.ext}`,
+                "Cache-Control": "private, no-store",
+                "Vary": "Cookie",
+                "X-Content-Type-Options": "nosniff",
+              },
+            });
           }
         }
       }
@@ -686,7 +691,7 @@ export async function POST(request: Request) {
           requiresGoogleAuth:
             !session ||
             !googleAccount ||
-            !hasDriveReadScope(googleAccount.scopes ?? (googleAccount as any).scope),
+            !hasDriveScope,
         },
         { status: 422 }
       );

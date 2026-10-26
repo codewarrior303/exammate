@@ -137,11 +137,12 @@ export async function downloadPng(exams: ParsedExam[]): Promise<void> {
     { header: "COURSE TITLE", width: 500 },
     { header: "FACULTY", width: tableWidth - 1200 },
   ];
-  measureContext.font = "17px Arial, sans-serif";
+  const measureContext = getMeasureContext();
+  if (measureContext) measureContext.font = "17px Arial, sans-serif";
   const preparedRows = rows(exams).map((row) => {
     const wrapped = row.map((value, index) => {
       const column = columns[index];
-      return column ? wrapCanvasText(measureContext, value, column.width - 24) : [value];
+      return column && measureContext ? wrapCanvasText(measureContext, value, column.width - 24) : [value];
     });
     return { values: wrapped, height: Math.max(58, ...wrapped.map((lines) => lines.length * 22 + 24)) };
   });
@@ -240,5 +241,10 @@ export async function downloadPng(exams: ParsedExam[]): Promise<void> {
   window.setTimeout(() => URL.revokeObjectURL(url), 30_000);
 }
 
-const measureCanvas = document.createElement("canvas");
-const measureContext = measureCanvas.getContext("2d")!;
+let measureContextInstance: CanvasRenderingContext2D | null = null;
+function getMeasureContext(): CanvasRenderingContext2D {
+  if (!measureContextInstance && typeof document !== "undefined") {
+    measureContextInstance = document.createElement("canvas").getContext("2d");
+  }
+  return measureContextInstance!;
+}

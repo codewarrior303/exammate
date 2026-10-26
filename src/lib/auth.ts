@@ -141,6 +141,9 @@ export const auth = betterAuth({
         process.env.VERCEL_PROJECT_PRODUCTION_URL
           ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
           : "",
+        process.env.VERCEL_URL
+          ? `https://${process.env.VERCEL_URL}`
+          : "",
       ].filter((origin): origin is string => Boolean(origin))
     : [
         process.env.BETTER_AUTH_URL,
@@ -179,28 +182,4 @@ export async function getAuthDatabase() {
   if (!databaseUri) throw new Error("DB_URI is required.");
   await mongoClient.connect();
   return mongoClient.db();
-}
-
-export function assertAuthConfiguration() {
-  if (googleConfigError) {
-    throw new Error(`Google OAuth configuration could not be loaded: ${googleConfigError.message}`);
-  }
-  if (!googleClientId || !googleClientSecret) {
-    throw new Error("Set GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET, or provide GOOGLE_CLIENT_CONFIG_JSON.");
-  }
-  if (isProduction && !process.env.BETTER_AUTH_SECRET) {
-    throw new Error("Set BETTER_AUTH_SECRET to a private random value in production.");
-  }
-  if (isProduction && !process.env.AUTH_BRIDGE_SECRET) {
-    throw new Error("Set AUTH_BRIDGE_SECRET to the same private random value on the web and API services.");
-  }
-}
-
-export function getAuthBridgeSecret() {
-  const bridgeSecret = process.env.AUTH_BRIDGE_SECRET;
-  if (bridgeSecret) return bridgeSecret;
-  if (isProduction) {
-    throw new Error("AUTH_BRIDGE_SECRET is required in production.");
-  }
-  return process.env.SESSION_SECRET_KEY ?? localSecret;
 }
