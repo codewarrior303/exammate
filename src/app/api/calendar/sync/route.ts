@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { getPrimaryGoogleAccount } from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 const MAX_REQUEST_BYTES = 512 * 1024;
@@ -119,16 +120,14 @@ export async function GET() {
       );
     }
     const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-    const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
-    if (!googleAccounts.length) {
+    const googleAccount = getPrimaryGoogleAccount(accounts);
+    if (!googleAccount) {
       return NextResponse.json(
         { connected: false, hasCalendarScope: false },
         { headers: { "Cache-Control": "private, no-store" } }
       );
     }
-    const hasCalendarScope = googleAccounts.some((account) =>
-      hasCalendarEventScope(account.scopes),
-    );
+    const hasCalendarScope = hasCalendarEventScope(googleAccount.scopes);
     return NextResponse.json(
       { connected: true, hasCalendarScope },
       { headers: { "Cache-Control": "private, no-store" } }
@@ -186,12 +185,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Calendar sync is temporarily unavailable." }, { status: 503 });
   }
 
-  const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
-  if (!googleAccounts.length) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
-  const googleAccount = googleAccounts.find((account) =>
-    hasCalendarEventScope(account.scopes),
-  );
-  if (!googleAccount) {
+  const googleAccount = getPrimaryGoogleAccount(accounts);
+  if (!googleAccount) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
+  if (!hasCalendarEventScope(googleAccount.scopes)) {
     return NextResponse.json(
       { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
       { status: 403 },

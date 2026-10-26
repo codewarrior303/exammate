@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { auth } from "@/lib/auth";
+import { getPrimaryGoogleAccount } from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
 export const runtime = "nodejs";
@@ -569,12 +570,10 @@ export async function GET() {
     const accounts = session
       ? await auth.api.listUserAccounts({ headers: requestHeaders })
       : [];
-    const googleAccounts = accounts?.filter((item) => item.providerId === "google") ?? [];
-    const hasDriveScope = googleAccounts.some((account) =>
-      hasDriveReadScope(account.scopes),
-    );
+    const googleAccount = getPrimaryGoogleAccount(accounts);
+    const hasDriveScope = hasDriveReadScope(googleAccount?.scopes);
     return NextResponse.json(
-      { connected: Boolean(session && googleAccounts.length), hasDriveScope },
+      { connected: Boolean(session && googleAccount), hasDriveScope },
       { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
     );
   } catch {
@@ -656,9 +655,7 @@ export async function POST(request: Request) {
       session = await auth.api.getSession({ headers: requestHeaders });
       if (session) {
         const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-        googleAccount = accounts?.find((account) =>
-          account.providerId === "google" && hasDriveReadScope(account.scopes),
-        );
+        googleAccount = getPrimaryGoogleAccount(accounts);
       }
     } catch {
       // Public shared links remain available if optional sign-in is unavailable.
@@ -694,7 +691,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: result.error,
-          requiresGoogleAuth: !session || !googleAccount,
+          requiresGoogleAuth: !session || !googleAccount || !hasDriveReadScope(googleAccount.scopes),
         },
         { status: 422 }
       );
