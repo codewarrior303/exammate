@@ -290,6 +290,7 @@ Time: ${examTime}<br><br>
       const requestedReminders = getUpcomingReminders(start, Date.now());
       const event = {
         id: eventId(exam.id),
+        status: "confirmed",
         summary: `Reminder from ExamMate: ${title}`,
         description,
         colorId: "7",
@@ -302,7 +303,7 @@ Time: ${examTime}<br><br>
           overrides: requestedReminders,
         },
       };
-      const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events?fields=id,htmlLink,summary,reminders";
+      const calendarUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events?fields=id,htmlLink,summary,status,reminders";
       const requestOptions: RequestInit = {
         headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         body: JSON.stringify(event),
@@ -311,9 +312,22 @@ Time: ${examTime}<br><br>
       let response = await fetch(calendarUrl, { ...requestOptions, method: "POST" });
       if (response.status === 409) {
         response = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event.id}?fields=id,htmlLink,summary,reminders`,
-          { ...requestOptions, method: "PATCH" }
+          `https://www.googleapis.com/calendar/v3/calendars/primary/events/${event.id}?fields=id,htmlLink,summary,status,reminders`,
+          {
+            ...requestOptions,
+            body: JSON.stringify({ ...event, status: "confirmed" }),
+            method: "PATCH",
+          }
         );
+        if (!response.ok) {
+          // If the cancelled event was purged or PATCH failed, insert as a new event:
+          const { id: _, ...eventWithoutId } = event;
+          response = await fetch(calendarUrl, {
+            ...requestOptions,
+            body: JSON.stringify({ ...eventWithoutId, status: "confirmed" }),
+            method: "POST",
+          });
+        }
       }
       if (!response.ok) {
         const details = await response.json().catch(() => ({})) as { error?: { message?: string; status?: string } };
@@ -330,13 +344,47 @@ Time: ${examTime}<br><br>
         }
         return NextResponse.json({ error: "Could not save calendar event. Please retry." }, { status: 502 });
       }
-      const savedEvent = await response.json().catch(() => null) as {
+      let savedEvent = await response.json().catch(() => null) as {
+        id?: string;
         htmlLink?: string;
         summary?: string;
+        status?: string;
       } | null;
+
+      // If Google still reports the event as cancelled, insert a new event:
+      if (savedEvent?.status === "cancelled") {
+        const { id: _, ...eventWithoutId } = event;
+        const insertResponse = await fetch(calendarUrl, {
+          ...requestOptions,
+          body: JSON.stringify({ ...eventWithoutId, status: "confirmed" }),
+          method: "POST",
+        });
+        if (insertResponse.ok) {
+          const insertData = await insertResponse.json().catch(() => null) as {
+            htmlLink?: string;
+            summary?: string;
+            status?: string;
+          } | null;
+          if (insertData) {
+            savedEvent = insertData;
+          }
+        }
+      }
+
+      let eventUrl = savedEvent?.htmlLink || "";
+      if (eventUrl && session.user.email) {
+        try {
+          const u = new URL(eventUrl);
+          u.searchParams.set("authuser", session.user.email);
+          eventUrl = u.toString();
+        } catch {
+          eventUrl = `${eventUrl}&authuser=${encodeURIComponent(session.user.email)}`;
+        }
+      }
+
       savedEvents.push({
         title: savedEvent?.summary ?? event.summary,
-        url: savedEvent?.htmlLink || "",
+        url: eventUrl,
       });
       synced += 1;
     }
