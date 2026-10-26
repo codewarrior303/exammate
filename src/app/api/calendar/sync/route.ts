@@ -6,6 +6,7 @@ import {
   getPrimaryGoogleAccount,
   getGoogleAccessToken,
   hasCalendarEventScope,
+  getVerifiedGoogleAccount,
 } from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
 
@@ -114,17 +115,16 @@ export async function GET() {
         { headers: { "Cache-Control": "private, no-store" } }
       );
     }
-    const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-    const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
-    if (!googleAccounts.length) {
+    const { googleAccount, hasCalendarScope } = await getVerifiedGoogleAccount(
+      session.user.id,
+      requestHeaders,
+    );
+    if (!googleAccount) {
       return NextResponse.json(
         { connected: false, hasCalendarScope: false },
         { headers: { "Cache-Control": "private, no-store" } }
       );
     }
-    const hasCalendarScope = googleAccounts.some((account) =>
-      hasCalendarEventScope(account.scopes ?? (account as any).scope),
-    );
     return NextResponse.json(
       {
         connected: true,
@@ -164,11 +164,9 @@ export async function POST(request: Request) {
   }
 
   let session;
-  let accounts;
+  const requestHeaders = await headers();
   try {
-    const requestHeaders = await headers();
     session = await auth.api.getSession({ headers: requestHeaders });
-    if (session) accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
   } catch {
     return NextResponse.json(
       { error: "Could not verify Google connection." },
@@ -186,12 +184,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Calendar sync is temporarily unavailable." }, { status: 503 });
   }
 
-  const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
-  if (!googleAccounts.length) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
-  if (!googleAccounts.some((account) => hasCalendarEventScope(account.scopes ?? (account as any).scope))) {
+  const { googleAccount, hasCalendarScope, accessToken } = await getVerifiedGoogleAccount(
+    session.user.id,
+    requestHeaders,
+  );
+
+  if (!googleAccount) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
+  if (!hasCalendarScope) {
     return NextResponse.json(
       { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
       { status: 403 },
+    );
+  }
+  if (!accessToken) {
+    return NextResponse.json(
+      { error: "Google session expired. Please reconnect Google from navbar." },
+      { status: 401 }
     );
   }
 
@@ -234,30 +242,6 @@ export async function POST(request: Request) {
     return NextResponse.json(
       { error: "Sample routines cannot sync to Google Calendar." },
       { status: 400 }
-    );
-  }
-
-  const googleAccount = getPrimaryGoogleAccount(googleAccounts, hasCalendarEventScope);
-  if (!googleAccount || !hasCalendarEventScope(googleAccount.scopes ?? (googleAccount as any).scope)) {
-    return NextResponse.json(
-      { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
-      { status: 403 }
-    );
-  }
-
-  let accessToken: string | null = null;
-  try {
-    accessToken = await getGoogleAccessToken(googleAccount.id, await headers());
-  } catch {
-    return NextResponse.json(
-      { error: "Google session expired. Please reconnect Google from navbar." },
-      { status: 401 }
-    );
-  }
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: "Google session expired. Please reconnect Google from navbar." },
-      { status: 401 }
     );
   }
 

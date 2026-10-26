@@ -1088,72 +1088,117 @@ export default function Home() {
       routineSourceRef.current === "sample"
     )
       return;
-    const syncKey = JSON.stringify(generatedExams);
+
+    let hasConsent = false;
     try {
-      const pendingSync = window.sessionStorage.getItem(
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("calendar_consent") === "1") {
+        hasConsent = true;
+        searchParams.delete("calendar_consent");
+        const newSearch = searchParams.toString();
+        const cleanUrl =
+          window.location.pathname +
+          (newSearch ? `?${newSearch}` : "") +
+          window.location.hash;
+        window.history.replaceState({}, "", cleanUrl);
+      }
+      const localPending = window.localStorage.getItem(
         "examMate:pendingCalendarSync",
       );
-      if (pendingSync === "true") {
-        let cancelled = false;
-        document
-          .getElementById("results")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        void (async () => {
-          // The client session hook can lag after Google's OAuth redirect. Check
-          // the server session directly while its callback cookie settles.
-          let status: { connected?: boolean; hasCalendarScope?: boolean } | null = null;
-          for (let attempt = 0; attempt < 10 && !cancelled; attempt += 1) {
-            try {
-              const response = await fetch("/api/calendar/sync", {
-                cache: "no-store",
-              });
-              status = response.ok
-                ? (await response.json()) as {
-                    connected?: boolean;
-                    hasCalendarScope?: boolean;
-                  }
-                : null;
-              if (status?.connected && status.hasCalendarScope) break;
-            } catch {
-              status = null;
-            }
-            if (attempt < 9) {
-              await new Promise((resolve) => window.setTimeout(resolve, 500));
-            }
-          }
-
-          if (cancelled) return;
-          window.sessionStorage.removeItem("examMate:pendingCalendarSync");
-          if (!status?.connected) {
-            setHasCalendarScope(false);
-            setError(
-              "Google connection was not restored. Connect Google, then try Calendar sync again.",
-            );
-            return;
-          }
-          if (!status.hasCalendarScope) {
-            setHasCalendarScope(false);
-            setShowCalendarSyncPrompt(true);
-            setError(
-              "Calendar permission was not granted. Choose Yes to allow Calendar access.",
-            );
-            return;
-          }
-
-          setHasCalendarScope(true);
-          setShowCalendarSyncPrompt(false);
-          if (lastCalendarSyncRef.current !== syncKey) {
-            lastCalendarSyncRef.current = syncKey;
-            const synced = await syncCalendar(generatedExams);
-            if (!cancelled && !synced) lastCalendarSyncRef.current = "";
-          }
-        })();
-        return () => { cancelled = true; };
+      const sessionPending = window.sessionStorage.getItem(
+        "examMate:pendingCalendarSync",
+      );
+      if (localPending) {
+        const time = Number(localPending);
+        if (!Number.isNaN(time) && Date.now() - time < 10 * 60 * 1000) {
+          hasConsent = true;
+        }
+      }
+      if (sessionPending === "true") {
+        hasConsent = true;
       }
     } catch {
       // ignore
     }
-  }, [authSession, generatedExams, hasCalendarScope, isHydrated, isSampleRoutine]);
+
+    if (!hasConsent) return;
+
+    try {
+      window.localStorage.removeItem("examMate:pendingCalendarSync");
+      window.sessionStorage.removeItem("examMate:pendingCalendarSync");
+    } catch {
+      // ignore
+    }
+
+    const syncKey = JSON.stringify(generatedExams);
+    setCalendarSyncing(true);
+    setShowCalendarSyncPrompt(true);
+    setIsSyncPromptClosing(false);
+
+    document
+      .getElementById("results")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+
+    void (async () => {
+      let status: { connected?: boolean; hasCalendarScope?: boolean } | null =
+        null;
+      for (let attempt = 0; attempt < 8; attempt += 1) {
+        try {
+          const response = await fetch("/api/calendar/sync", {
+            cache: "no-store",
+          });
+          status = response.ok
+            ? ((await response.json()) as {
+                connected?: boolean;
+                hasCalendarScope?: boolean;
+              })
+            : null;
+          if (status?.connected && status.hasCalendarScope) break;
+        } catch {
+          status = null;
+        }
+        if (attempt < 7) {
+          await new Promise((resolve) => window.setTimeout(resolve, 600));
+        }
+      }
+
+      if (!status?.connected) {
+        setHasCalendarScope(false);
+        setCalendarSyncing(false);
+        setError(
+          "Google connection was not restored. Connect Google, then try Calendar sync again.",
+        );
+        return;
+      }
+
+      if (!status.hasCalendarScope) {
+        setHasCalendarScope(false);
+        setCalendarSyncing(false);
+        setShowCalendarSyncPrompt(true);
+        setError(
+          "Calendar permission was not detected. Choose Yes to allow Calendar access.",
+        );
+        return;
+      }
+
+      setHasCalendarScope(true);
+      if (lastCalendarSyncRef.current !== syncKey) {
+        lastCalendarSyncRef.current = syncKey;
+        const synced = await syncCalendar(generatedExams);
+        if (synced) {
+          closeSyncPrompt();
+          setMessage("Exams successfully synced to Google Calendar!");
+        } else {
+          lastCalendarSyncRef.current = "";
+          closeSyncPrompt();
+          setError("Could not sync exams to Google Calendar. Please try again.");
+        }
+      } else {
+        closeSyncPrompt();
+      }
+      setCalendarSyncing(false);
+    })();
+  }, [isHydrated, generatedExams, isSampleRoutine]);
 
   function persistRoutine(exams: ParsedExam[]) {
     // Only persist actual user routines, never sample routines (so tab close clears sample routine)
@@ -1836,6 +1881,7 @@ export default function Home() {
           window.sessionStorage.removeItem("examMate:routineSource");
           window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
           window.sessionStorage.removeItem("examMate:pendingCalendarSync");
+          window.localStorage.removeItem("examMate:pendingCalendarSync");
           window.sessionStorage.removeItem("examMate:justConnectedGoogle");
         }
       } catch {
@@ -4499,35 +4545,80 @@ export default function Home() {
                                         return;
                                       }
 
-                                      window.sessionStorage.setItem(
-                                        "examMate:pendingCalendarSync",
-                                        "true",
-                                      );
-                                      const authResult = await authClient.signIn.social({
-                                        provider: "google",
-                                        callbackURL: "/",
-                                        errorCallbackURL: "/?auth_error=google_oauth",
-                                        scopes: GOOGLE_CALENDAR_SCOPES,
-                                        additionalParams: {
-                                          access_type: "offline",
-                                          include_granted_scopes: "true",
-                                          prompt: authSession?.user?.email ? "consent" : "select_account consent",
-                                          ...(authSession?.user?.email
-                                            ? { login_hint: authSession.user.email }
-                                            : {}),
-                                        },
-                                      });
-                                      if (authResult?.error) {
-                                        window.sessionStorage.removeItem(
+                                      try {
+                                        window.localStorage.setItem(
                                           "examMate:pendingCalendarSync",
+                                          Date.now().toString(),
                                         );
+                                        window.sessionStorage.setItem(
+                                          "examMate:pendingCalendarSync",
+                                          "true",
+                                        );
+                                      } catch {
+                                        // ignore
+                                      }
+
+                                      let authResult;
+                                      if (authSession?.user?.email) {
+                                        try {
+                                          authResult = await authClient.linkSocial({
+                                            provider: "google",
+                                            callbackURL: "/?calendar_consent=1",
+                                            errorCallbackURL: "/?auth_error=google_oauth",
+                                            scopes: GOOGLE_CALENDAR_SCOPES,
+                                            additionalParams: {
+                                              access_type: "offline",
+                                              include_granted_scopes: "true",
+                                              prompt: "consent",
+                                              login_hint: authSession.user.email,
+                                            },
+                                          });
+                                        } catch {
+                                          authResult = await authClient.signIn.social({
+                                            provider: "google",
+                                            callbackURL: "/?calendar_consent=1",
+                                            errorCallbackURL: "/?auth_error=google_oauth",
+                                            scopes: GOOGLE_CALENDAR_SCOPES,
+                                            additionalParams: {
+                                              access_type: "offline",
+                                              include_granted_scopes: "true",
+                                              prompt: "consent",
+                                              login_hint: authSession.user.email,
+                                            },
+                                          });
+                                        }
+                                      } else {
+                                        authResult = await authClient.signIn.social({
+                                          provider: "google",
+                                          callbackURL: "/?calendar_consent=1",
+                                          errorCallbackURL: "/?auth_error=google_oauth",
+                                          scopes: GOOGLE_CALENDAR_SCOPES,
+                                          additionalParams: {
+                                            access_type: "offline",
+                                            include_granted_scopes: "true",
+                                            prompt: "select_account consent",
+                                          },
+                                        });
+                                      }
+
+                                      if (authResult?.error) {
+                                        try {
+                                          window.localStorage.removeItem(
+                                            "examMate:pendingCalendarSync",
+                                          );
+                                          window.sessionStorage.removeItem(
+                                            "examMate:pendingCalendarSync",
+                                          );
+                                        } catch {
+                                          // ignore
+                                        }
                                         throw new Error(
                                           authResult.error.message ||
                                             "Calendar permission was not granted.",
                                         );
                                       }
 
-                                      // Poll /api/calendar/sync briefly to ensure the new calendar scope is active on server
+                                      // Poll /api/calendar/sync briefly in case redirect hasn't happened or was inline
                                       let calendarConfirmed = false;
                                       for (let attempt = 0; attempt < 10; attempt += 1) {
                                         try {
@@ -4549,9 +4640,16 @@ export default function Home() {
                                         await new Promise((resolve) => window.setTimeout(resolve, 500));
                                       }
 
-                                      window.sessionStorage.removeItem(
-                                        "examMate:pendingCalendarSync",
-                                      );
+                                      try {
+                                        window.localStorage.removeItem(
+                                          "examMate:pendingCalendarSync",
+                                        );
+                                        window.sessionStorage.removeItem(
+                                          "examMate:pendingCalendarSync",
+                                        );
+                                      } catch {
+                                        // ignore
+                                      }
 
                                       if (!calendarConfirmed) {
                                         throw new Error(
