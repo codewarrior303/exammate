@@ -1088,7 +1088,6 @@ export default function Home() {
 
   useEffect(() => {
     if (
-      !authSession ||
       !isHydrated ||
       !generatedExams.length ||
       isSampleRoutine ||
@@ -1102,38 +1101,65 @@ export default function Home() {
       );
       if (pendingSync === "true") {
         let cancelled = false;
-        void fetch("/api/calendar/sync", { cache: "no-store" })
-          .then(async (response) => response.ok
-            ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
-            : null)
-          .then((status) => {
-            if (cancelled) return;
-            window.sessionStorage.removeItem("examMate:pendingCalendarSync");
-            if (!status?.connected || !status.hasCalendarScope) {
-              setHasCalendarScope(false);
-              setShowCalendarSyncPrompt(true);
-              setError("Calendar permission was not confirmed. Allow access, then try syncing again.");
-              return;
+        document
+          .getElementById("results")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        void (async () => {
+          // The client session hook can lag after Google's OAuth redirect. Check
+          // the server session directly while its callback cookie settles.
+          let status: { connected?: boolean; hasCalendarScope?: boolean } | null = null;
+          for (let attempt = 0; attempt < 10 && !cancelled; attempt += 1) {
+            try {
+              const response = await fetch("/api/calendar/sync", {
+                cache: "no-store",
+              });
+              status = response.ok
+                ? (await response.json()) as {
+                    connected?: boolean;
+                    hasCalendarScope?: boolean;
+                  }
+                : null;
+              if (status?.connected && status.hasCalendarScope) break;
+            } catch {
+              status = null;
             }
-            setHasCalendarScope(true);
-            setShowCalendarSyncPrompt(false);
-            if (lastCalendarSyncRef.current !== syncKey) {
-              lastCalendarSyncRef.current = syncKey;
-              void syncCalendar(generatedExams);
+            if (attempt < 9) {
+              await new Promise((resolve) => window.setTimeout(resolve, 500));
             }
-          })
-          .catch(() => {
-            if (cancelled) return;
-            window.sessionStorage.removeItem("examMate:pendingCalendarSync");
+          }
+
+          if (cancelled) return;
+          window.sessionStorage.removeItem("examMate:pendingCalendarSync");
+          if (!status?.connected) {
+            setHasCalendarScope(false);
+            setError(
+              "Google connection was not restored. Connect Google, then try Calendar sync again.",
+            );
+            return;
+          }
+          if (!status.hasCalendarScope) {
+            setHasCalendarScope(false);
             setShowCalendarSyncPrompt(true);
-            setError("Could not verify Calendar access. Please try syncing again.");
-          });
+            setError(
+              "Calendar permission was not granted. Choose Yes to allow Calendar access.",
+            );
+            return;
+          }
+
+          setHasCalendarScope(true);
+          setShowCalendarSyncPrompt(false);
+          if (lastCalendarSyncRef.current !== syncKey) {
+            lastCalendarSyncRef.current = syncKey;
+            const synced = await syncCalendar(generatedExams);
+            if (!cancelled && !synced) lastCalendarSyncRef.current = "";
+          }
+        })();
         return () => { cancelled = true; };
       }
     } catch {
       // ignore
     }
-  }, [authSession, generatedExams, isHydrated, isSampleRoutine]);
+  }, [generatedExams, isHydrated, isSampleRoutine]);
 
   function persistRoutine(exams: ParsedExam[]) {
     // Only persist actual user routines, never sample routines (so tab close clears sample routine)
