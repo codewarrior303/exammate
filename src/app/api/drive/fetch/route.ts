@@ -569,9 +569,12 @@ export async function GET() {
     const accounts = session
       ? await auth.api.listUserAccounts({ headers: requestHeaders })
       : [];
-    const account = accounts?.find((item) => item.providerId === "google");
+    const googleAccounts = accounts?.filter((item) => item.providerId === "google") ?? [];
+    const hasDriveScope = googleAccounts.some((account) =>
+      hasDriveReadScope(account.scopes),
+    );
     return NextResponse.json(
-      { connected: Boolean(session && account), hasDriveScope: hasDriveReadScope(account?.scopes) },
+      { connected: Boolean(session && googleAccounts.length), hasDriveScope },
       { headers: { "Cache-Control": "private, no-store", Vary: "Cookie" } },
     );
   } catch {
@@ -653,7 +656,9 @@ export async function POST(request: Request) {
       session = await auth.api.getSession({ headers: requestHeaders });
       if (session) {
         const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-        googleAccount = accounts?.find((account) => account.providerId === "google");
+        googleAccount = accounts?.find((account) =>
+          account.providerId === "google" && hasDriveReadScope(account.scopes),
+        );
       }
     } catch {
       // Public shared links remain available if optional sign-in is unavailable.
@@ -689,7 +694,7 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: result.error,
-          requiresGoogleAuth: !session || !googleAccount || !hasDriveReadScope(googleAccount.scopes),
+          requiresGoogleAuth: !session || !googleAccount,
         },
         { status: 422 }
       );

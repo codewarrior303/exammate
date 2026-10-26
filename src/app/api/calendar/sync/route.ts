@@ -6,6 +6,15 @@ import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from 
 
 const MAX_REQUEST_BYTES = 512 * 1024;
 const MAX_EXAMS_PER_SYNC = 100;
+const CALENDAR_EVENT_SCOPES = new Set([
+  "https://www.googleapis.com/auth/calendar.events.owned",
+  "https://www.googleapis.com/auth/calendar",
+  "https://www.googleapis.com/auth/calendar.events",
+]);
+
+function hasCalendarEventScope(scopes: string[] | undefined): boolean {
+  return Boolean(scopes?.some((scope) => CALENDAR_EVENT_SCOPES.has(scope)));
+}
 
 type Exam = {
   id: string;
@@ -110,18 +119,15 @@ export async function GET() {
       );
     }
     const accounts = await auth.api.listUserAccounts({ headers: requestHeaders });
-    const googleAccount = accounts?.find((account) => account.providerId === "google");
-    if (!googleAccount) {
+    const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
+    if (!googleAccounts.length) {
       return NextResponse.json(
         { connected: false, hasCalendarScope: false },
         { headers: { "Cache-Control": "private, no-store" } }
       );
     }
-    const scopes = googleAccount.scopes ?? [];
-    const hasCalendarScope = scopes.some((scope) =>
-      scope === "https://www.googleapis.com/auth/calendar.events.owned" ||
-      scope === "https://www.googleapis.com/auth/calendar" ||
-      scope === "https://www.googleapis.com/auth/calendar.events"
+    const hasCalendarScope = googleAccounts.some((account) =>
+      hasCalendarEventScope(account.scopes),
     );
     return NextResponse.json(
       { connected: true, hasCalendarScope },
@@ -180,8 +186,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Calendar sync is temporarily unavailable." }, { status: 503 });
   }
 
-  const googleAccount = accounts?.find((account) => account.providerId === "google");
-  if (!googleAccount) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
+  const googleAccounts = accounts?.filter((account) => account.providerId === "google") ?? [];
+  if (!googleAccounts.length) return NextResponse.json({ error: "Connect Google account first." }, { status: 400 });
+  const googleAccount = googleAccounts.find((account) =>
+    hasCalendarEventScope(account.scopes),
+  );
+  if (!googleAccount) {
+    return NextResponse.json(
+      { error: "Calendar permission is missing for the connected Google account. Please allow Calendar access." },
+      { status: 403 },
+    );
+  }
 
   let exams: Exam[];
   try {

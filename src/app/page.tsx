@@ -1089,6 +1089,7 @@ export default function Home() {
   useEffect(() => {
     if (
       !authSession ||
+      !isHydrated ||
       !generatedExams.length ||
       isSampleRoutine ||
       routineSourceRef.current === "sample"
@@ -1100,18 +1101,39 @@ export default function Home() {
         "examMate:pendingCalendarSync",
       );
       if (pendingSync === "true") {
-        window.sessionStorage.removeItem("examMate:pendingCalendarSync");
-        setShowCalendarSyncPrompt(false);
-        if (lastCalendarSyncRef.current !== syncKey) {
-          lastCalendarSyncRef.current = syncKey;
-          void syncCalendar(generatedExams);
-        }
-        return;
+        let cancelled = false;
+        void fetch("/api/calendar/sync", { cache: "no-store" })
+          .then(async (response) => response.ok
+            ? await response.json() as { connected?: boolean; hasCalendarScope?: boolean }
+            : null)
+          .then((status) => {
+            if (cancelled) return;
+            window.sessionStorage.removeItem("examMate:pendingCalendarSync");
+            if (!status?.connected || !status.hasCalendarScope) {
+              setHasCalendarScope(false);
+              setShowCalendarSyncPrompt(true);
+              setError("Calendar permission was not confirmed. Allow access, then try syncing again.");
+              return;
+            }
+            setHasCalendarScope(true);
+            setShowCalendarSyncPrompt(false);
+            if (lastCalendarSyncRef.current !== syncKey) {
+              lastCalendarSyncRef.current = syncKey;
+              void syncCalendar(generatedExams);
+            }
+          })
+          .catch(() => {
+            if (cancelled) return;
+            window.sessionStorage.removeItem("examMate:pendingCalendarSync");
+            setShowCalendarSyncPrompt(true);
+            setError("Could not verify Calendar access. Please try syncing again.");
+          });
+        return () => { cancelled = true; };
       }
     } catch {
       // ignore
     }
-  }, [authSession, generatedExams, isSampleRoutine]);
+  }, [authSession, generatedExams, isHydrated, isSampleRoutine]);
 
   function persistRoutine(exams: ParsedExam[]) {
     // Only persist actual user routines, never sample routines (so tab close clears sample routine)
@@ -1448,17 +1470,29 @@ export default function Home() {
             setGenerating(false);
             setGoogleLoading(true);
             setMessage("Connect the Google account that has access to this Drive file.");
-            const authResult = await authClient.signIn.social({
-              provider: "google",
-              callbackURL: "/",
-              errorCallbackURL: "/?auth_error=google_oauth",
-              scopes: GOOGLE_DRIVE_SCOPES,
-              additionalParams: {
-                access_type: "offline",
-                prompt: authSession?.user ? "consent" : "select_account consent",
-                ...(authSession?.user.email ? { login_hint: authSession.user.email } : {}),
-              },
-            });
+            const authResult = authSession?.user
+              ? await authClient.linkSocial({
+                  provider: "google",
+                  callbackURL: "/",
+                  scopes: GOOGLE_DRIVE_SCOPES,
+                  additionalParams: {
+                    access_type: "offline",
+                    prompt: "consent",
+                    ...(authSession.user.email
+                      ? { login_hint: authSession.user.email }
+                      : {}),
+                  },
+                })
+              : await authClient.signIn.social({
+                  provider: "google",
+                  callbackURL: "/",
+                  errorCallbackURL: "/?auth_error=google_oauth",
+                  scopes: GOOGLE_DRIVE_SCOPES,
+                  additionalParams: {
+                    access_type: "offline",
+                    prompt: "select_account consent",
+                  },
+                });
             if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
             return;
           } catch (authorizationError) {
@@ -4415,10 +4449,9 @@ export default function Home() {
                                           "examMate:pendingCalendarSync",
                                           "true",
                                         );
-                                        const scopeResult = await authClient.signIn.social({
+                                        const scopeResult = await authClient.linkSocial({
                                           provider: "google",
                                           callbackURL: "/",
-                                          errorCallbackURL: "/?auth_error=google_oauth",
                                           scopes: GOOGLE_CALENDAR_SCOPES,
                                           additionalParams: {
                                             access_type: "offline",
