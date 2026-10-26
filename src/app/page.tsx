@@ -1481,6 +1481,58 @@ export default function Home() {
         }
       }
 
+      // A Drive link always needs explicit Drive authorization, even when the
+      // link happens to be publicly readable. Keep this incremental so a
+      // university account that already has Calendar access only adds Drive.
+      try {
+        const accessResponse = await fetch("/api/drive/fetch", { cache: "no-store" });
+        const access = accessResponse.ok
+          ? await accessResponse.json() as { connected?: boolean; hasDriveScope?: boolean }
+          : null;
+        if (!access?.connected) {
+          window.sessionStorage.setItem(PENDING_DRIVE_IMPORT_KEY, JSON.stringify({
+            url: link,
+            courses: effectiveSelectedCodes.join(", "),
+            createdAt: Date.now(),
+          }));
+          setGenerating(false);
+          setGoogleLoading(true);
+          setMessage("Choose your university Google account to continue.");
+          const authResult = await startGoogleSignIn({ requireDrive: true });
+          if (authResult?.error) throw new Error(authResult.error.message || "Google sign-in failed.");
+          return;
+        }
+        if (!access.hasDriveScope) {
+          window.sessionStorage.setItem(PENDING_DRIVE_IMPORT_KEY, JSON.stringify({
+            url: link,
+            courses: effectiveSelectedCodes.join(", "),
+            createdAt: Date.now(),
+          }));
+          setGenerating(false);
+          setGoogleLoading(true);
+          setMessage("Allow Drive access for your university Google account to continue.");
+          const authResult = await authClient.linkSocial({
+            provider: "google",
+            callbackURL: "/",
+            scopes: GOOGLE_DRIVE_SCOPES,
+            additionalParams: {
+              access_type: "offline",
+              prompt: "consent",
+              ...(authSession.user.email ? { login_hint: authSession.user.email } : {}),
+            },
+          });
+          if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
+          return;
+        }
+      } catch (authorizationError) {
+        generationLockRef.current = false;
+        window.sessionStorage.removeItem(PENDING_DRIVE_IMPORT_KEY);
+        setGoogleLoading(false);
+        setMessage("");
+        setError(authorizationError instanceof Error ? authorizationError.message : "Could not authorize Google Drive.");
+        return;
+      }
+
       try {
         sourceExams = await loadExamsFromDrive(link);
         setAllExams(sourceExams);
