@@ -31,12 +31,29 @@ export function WebsiteLoader() {
       return;
     }
 
-    if (!allowInitialReloadLoaderRef.current || pathname !== "/") return;
+    if (!allowInitialReloadLoaderRef.current || pathname !== "/") {
+      document.documentElement.removeAttribute("data-exammate-refresh");
+      return;
+    }
+
+    if (
+      typeof window !== "undefined" &&
+      (window.location.search.includes("code=") ||
+        window.location.search.includes("state=") ||
+        window.location.search.includes("auth_error=") ||
+        window.sessionStorage.getItem("examMate:pendingCalendarSync") ||
+        window.sessionStorage.getItem("examMate:pendingDriveImport"))
+    ) {
+      document.documentElement.removeAttribute("data-exammate-refresh");
+      setVisible(false);
+      return;
+    }
 
     const navigationEntry = performance.getEntriesByType("navigation")[0] as
       | PerformanceNavigationTiming
       | undefined;
     if (navigationEntry?.type !== "reload" && !installedAppLaunchRef.current) {
+      document.documentElement.removeAttribute("data-exammate-refresh");
       setVisible(false);
       return;
     }

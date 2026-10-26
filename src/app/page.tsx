@@ -243,6 +243,7 @@ const GOOGLE_IDENTITY_SCOPES = [
 
 const GOOGLE_CALENDAR_SCOPES = [
   ...GOOGLE_IDENTITY_SCOPES,
+  "https://www.googleapis.com/auth/calendar.events",
   "https://www.googleapis.com/auth/calendar.events.owned",
 ];
 
@@ -1507,8 +1508,7 @@ export default function Home() {
             additionalParams: {
               access_type: "offline",
               include_granted_scopes: "true",
-              prompt: authSession?.user ? "consent" : "select_account consent",
-              ...(authSession?.user?.email ? { login_hint: authSession.user.email } : {}),
+              prompt: "select_account consent",
             },
           });
           if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
@@ -1546,10 +1546,7 @@ export default function Home() {
               additionalParams: {
                 access_type: "offline",
                 include_granted_scopes: "true",
-                prompt: authSession?.user ? "consent" : "select_account consent",
-                ...(authSession?.user?.email
-                  ? { login_hint: authSession.user.email }
-                  : {}),
+                prompt: "select_account consent",
               },
             });
             if (authResult?.error) throw new Error(authResult.error.message || "Google Drive authorization failed.");
@@ -4502,10 +4499,7 @@ export default function Home() {
                                         additionalParams: {
                                           access_type: "offline",
                                           include_granted_scopes: "true",
-                                          prompt: authSession?.user ? "consent" : "select_account consent",
-                                          ...(authSession?.user?.email
-                                            ? { login_hint: authSession.user.email }
-                                            : {}),
+                                          prompt: "select_account consent",
                                         },
                                       });
                                       if (authResult?.error) {

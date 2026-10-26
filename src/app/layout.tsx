@@ -84,7 +84,6 @@ export default async function RootLayout({
               const root = document.documentElement;
               const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
               if (isReload) root.setAttribute("data-exammate-refresh", "true");
-              window.addEventListener("beforeunload", () => root.setAttribute("data-exammate-refresh", "true"));
               window.addEventListener("pageshow", (event) => {
                 if (event.persisted) root.removeAttribute("data-exammate-refresh");
               });
