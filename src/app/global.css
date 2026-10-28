@@ -1447,6 +1447,46 @@ details > summary::-webkit-details-marker {
   animation: shimmer 2s infinite;
 }
 
+.table-laser-line {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2.5px;
+  overflow: hidden;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+  pointer-events: none;
+  z-index: 35;
+}
+
+.table-laser-beam {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(94, 234, 212, 0.25) 20%,
+    #5EEAD4 50%,
+    rgba(94, 234, 212, 0.25) 80%,
+    transparent 100%
+  );
+  box-shadow: 0 0 14px #5EEAD4, 0 0 26px rgba(94, 234, 212, 0.85);
+  animation: tableLaserSweepOnce 1.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes tableLaserSweepOnce {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 @keyframes rowReveal {
   0% {
     opacity: 0;

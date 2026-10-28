@@ -6,11 +6,11 @@ export function middleware(request: NextRequest) {
   const nonce = btoa(crypto.randomUUID());
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'nonce-${nonce}'${isProduction ? "" : " 'unsafe-eval'"} https://va.vercel-scripts.com`,
+    `script-src 'self' 'nonce-${nonce}'${isProduction ? "" : " 'unsafe-eval'"} https://va.vercel-scripts.com https://static.cloudflareinsights.com`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' blob: data: https:",
-    "connect-src 'self' https://*.google.com https://*.googleapis.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
+    "connect-src 'self' https://*.google.com https://*.googleapis.com https://va.vercel-scripts.com https://vitals.vercel-insights.com https://cloudflareinsights.com",
     "frame-src 'self' data:",
     "frame-ancestors 'none'",
     "object-src 'none'",

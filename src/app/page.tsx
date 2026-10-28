@@ -1686,7 +1686,7 @@ export default function Home() {
 
     // Initial first row is revealed immediately
     setVisibleRowCount(1);
-    setIsRevealingRows(matches.length > 1);
+    setIsRevealingRows(true);
 
     // Ensure smoothly scrolled to table section
     window.setTimeout(() => {
@@ -1780,13 +1780,17 @@ export default function Home() {
             clearInterval(rowRevealIntervalRef.current);
             rowRevealIntervalRef.current = null;
           }
-          setIsRevealingRows(false);
-          void finishRoutineGeneration();
+          setTimeout(() => {
+            setIsRevealingRows(false);
+            void finishRoutineGeneration();
+          }, 750);
         }
       }, stepInterval);
     } else {
-      setIsRevealingRows(false);
-      void finishRoutineGeneration();
+      setTimeout(() => {
+        setIsRevealingRows(false);
+        void finishRoutineGeneration();
+      }, 1100);
     }
   }
 
@@ -4178,12 +4182,10 @@ export default function Home() {
               <div
                 role="status"
                 aria-live="polite"
-                className="relative w-full max-w-full min-w-0 rounded-2xl glass-panel border border-teal-500/30 overflow-x-auto shadow-[0_16px_40px_rgba(0,0,0,0.6)] animate-in fade-in duration-300"
+                className="relative w-full max-w-full min-w-0 rounded-2xl glass-panel border border-teal-500/30 overflow-hidden shadow-[0_16px_40px_rgba(0,0,0,0.6)] animate-in fade-in duration-300"
               >
-                {/* Sweeping laser / scanner line across top */}
-                <div className="pointer-events-none absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#5EEAD4] to-transparent animate-shimmer" />
-
-                <table className="routine-table w-full min-w-[760px] text-left text-sm font-sans">
+                <div className="overflow-x-auto w-full">
+                  <table className="routine-table w-full min-w-[760px] text-left text-sm font-sans">
                   <thead>
                     <tr className="border-b border-teal-500/30 bg-[#0B1A24]/95 font-sans font-bold text-teal-300 text-[11px] tracking-wider uppercase">
                       <th className="py-3.5 px-4 font-semibold">DATE</th>
@@ -4266,6 +4268,7 @@ export default function Home() {
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
             ) : !isHydrated ? (
               <div
@@ -4333,11 +4336,6 @@ export default function Home() {
 
                 {/* Table Container with In-Table Frosted Glass Sync Overlay */}
                 <div className="relative w-full max-w-full min-w-0">
-                  {/* Sweeping laser line indicator while revealing rows */}
-                  {isRevealingRows && (
-                    <div className="pointer-events-none absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#5EEAD4] to-transparent animate-shimmer z-30" />
-                  )}
-
                   {/* Laser scanline sweep while purging data */}
                   {isClearing && (
                     <div className="pointer-events-none absolute inset-0 z-40 overflow-hidden rounded-2xl">
@@ -4356,6 +4354,12 @@ export default function Home() {
                           : "opacity-100 blur-0 transition-all duration-500 ease-out"
                     }`}
                   >
+                    {/* Sweeping laser line indicator while revealing rows - strictly clipped inside table top */}
+                    {isRevealingRows && (
+                      <div className="table-laser-line">
+                        <div className="table-laser-beam" />
+                      </div>
+                    )}
                     <table className="routine-table w-full min-w-[760px] text-left text-sm font-sans">
                       <thead>
                         <tr className="border-b border-teal-500/30 bg-[#0B1A24]/95 font-sans font-bold text-teal-300 text-[11px] tracking-wider uppercase">
