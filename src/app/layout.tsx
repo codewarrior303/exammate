@@ -13,6 +13,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   weight: ["500", "600", "700", "800"],
   variable: "--font-plus-jakarta",
   display: "swap",
+  preload: false,
 });
 
 const inter = Inter({
@@ -82,8 +83,15 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `(() => {
               const root = document.documentElement;
-              const isReload = performance.getEntriesByType("navigation")[0]?.type === "reload";
-              if (isReload) root.setAttribute("data-exammate-refresh", "true");
+              const nav = performance.getEntriesByType("navigation")[0];
+              const isReload = nav && nav.type === "reload";
+              const isStandalone =
+                (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+                window.navigator.standalone === true ||
+                new URLSearchParams(window.location.search).get("source") === "installed-app";
+              if ((isReload || isStandalone) && window.location.pathname === "/") {
+                root.setAttribute("data-exammate-refresh", "true");
+              }
               window.addEventListener("pageshow", (event) => {
                 if (event.persisted) root.removeAttribute("data-exammate-refresh");
               });

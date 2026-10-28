@@ -10,7 +10,7 @@
       * { box-sizing:border-box; }
       body { margin:0; min-height:100vh; background:radial-gradient(ellipse at 75% 5%,rgba(20,184,166,.1),transparent 38%),#0a1118; }
       [hidden] { display:none !important; }
-      .loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:#070d12; transition:opacity .2s ease; }
+      .loader { position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:radial-gradient(circle at 50% 40%,rgba(20,184,166,.14),transparent 65%),#070d12; transition:opacity .2s ease; }
       .loader.done { opacity:0; pointer-events:none; }
       .loader-content { width:min(256px,calc(100vw - 48px)); text-align:center; }
       .loader img { display:block; width:64px; height:64px; object-fit:contain; margin:0 auto 20px; filter:drop-shadow(0 0 12px rgba(94,234,212,.35)); }
@@ -48,7 +48,19 @@
   <body>
     <div id="offline-loader" class="loader" role="status" aria-live="polite">
       <div class="loader-content">
-        <img src="/icon.svg?v=3" alt="" width="64" height="64" />
+        <svg viewBox="0 0 64 64" width="64" height="64" style="display:block;margin:0 auto 20px;filter:drop-shadow(0 0 14px rgba(94,234,212,.45));" aria-hidden="true">
+          <defs>
+            <filter id="offline-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.2" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+          <g fill="none" stroke="#8cebc2" stroke-linecap="round" stroke-linejoin="round" filter="url(#offline-glow)">
+            <rect x="15" y="12" width="34" height="41" rx="5" stroke-width="2.5"/>
+            <path d="M22 21h20M22 28h8M22 36h6M35 35l3 3 6-7" stroke-width="2.5"/>
+            <path d="M22 45h20" stroke-opacity=".65" stroke-width="2"/>
+          </g>
+        </svg>
         <p class="brand">Exam<span>Mate</span></p>
         <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
         <div class="loader-meta"><span>Loading your workspace...</span><span id="progress-value">0%</span></div>

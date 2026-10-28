@@ -11,7 +11,9 @@ export function WebsiteLoader() {
   const allowInitialReloadLoaderRef = useRef(true);
   const installedAppLaunchRef = useRef(
     typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("source") === "installed-app",
+      ((window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) ||
+        (window.navigator as unknown as { standalone?: boolean }).standalone === true ||
+        new URLSearchParams(window.location.search).get("source") === "installed-app"),
   );
   const [visible, setVisible] = useState(false);
   const [progress, setProgress] = useState(0);
@@ -128,14 +130,28 @@ export function WebsiteLoader() {
     >
       <div className="pointer-events-none absolute h-[380px] w-[380px] -translate-y-6 rounded-full bg-teal-500/[0.08] blur-[100px]" />
       <div className="relative z-10 flex max-w-sm flex-col items-center px-4 text-center">
-        <img
-          src="/icon.svg?v=3"
-          alt="ExamMate logo"
+        <svg
+          viewBox="0 0 64 64"
           width="64"
           height="64"
-          draggable={false}
-          className="relative z-10 mb-5 h-14 w-14 select-none drop-shadow-[0_0_12px_rgba(94,234,212,0.35)] sm:h-16 sm:w-16"
-        />
+          aria-hidden="true"
+          className="relative z-10 mb-5 h-14 w-14 select-none drop-shadow-[0_0_14px_rgba(94,234,212,0.45)] sm:h-16 sm:w-16"
+        >
+          <defs>
+            <filter id="website-loader-glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="2.2" result="blur" />
+              <feMerge>
+                <feMergeNode in="blur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+          <g fill="none" stroke="#8cebc2" strokeLinecap="round" strokeLinejoin="round" filter="url(#website-loader-glow)">
+            <rect x="15" y="12" width="34" height="41" rx="5" strokeWidth="2.5" />
+            <path d="M22 21h20M22 28h8M22 36h6M35 35l3 3 6-7" strokeWidth="2.5" />
+            <path d="M22 45h20" strokeOpacity=".65" strokeWidth="2" />
+          </g>
+        </svg>
         <h1 className="font-sans text-2xl font-bold tracking-tight text-white">
           Exam<span className="text-[#5EEAD4]">Mate</span>
         </h1>

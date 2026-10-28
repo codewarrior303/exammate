@@ -7,8 +7,8 @@ export function middleware(request: NextRequest) {
   const csp = [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}'${isProduction ? "" : " 'unsafe-eval'"} https://va.vercel-scripts.com`,
-    "style-src 'self' 'unsafe-inline'",
-    "font-src 'self' data:",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' blob: data: https:",
     "connect-src 'self' https://*.google.com https://*.googleapis.com https://va.vercel-scripts.com https://vitals.vercel-insights.com",
     "frame-src 'self' data:",
