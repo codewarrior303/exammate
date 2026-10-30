@@ -9,7 +9,9 @@ async function handleReminders(request: NextRequest) {
   const cronSecret = process.env.CRON_SECRET;
   if (cronSecret) {
     const authHeader = request.headers.get("authorization");
-    if (authHeader !== `Bearer ${cronSecret}`) {
+    const queryKey = request.nextUrl.searchParams.get("key") || request.nextUrl.searchParams.get("secret");
+    const isAuthorized = authHeader === `Bearer ${cronSecret}` || queryKey === cronSecret;
+    if (!isAuthorized) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   } else if (process.env.NODE_ENV === "production") {
