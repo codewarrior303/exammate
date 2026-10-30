@@ -88,9 +88,9 @@ export async function getDueReminders(now: Date = new Date()): Promise<ExamRemin
     const db = await getAuthDatabase();
     const collection = db.collection<ExamReminderRecord>(COLLECTION_NAME);
 
-    // 24 hours from now plus a 1-hour grace window so hourly cron catches all upcoming exams
+    // 24 hours from now plus a 2-hour grace window so daily/hourly triggers catch upcoming exams
     const reminderWindowStart = now;
-    const reminderWindowEnd = new Date(now.getTime() + (24 * 60 + 60) * 60 * 1000);
+    const reminderWindowEnd = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
     return await collection.find({
       reminderSent: false,
