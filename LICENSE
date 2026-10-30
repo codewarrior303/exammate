@@ -1,22 +1,25 @@
-ExamMate Proprietary License
-Copyright (c) 2026 Ahnaf Shahriar Abir. All rights reserved.
+MIT License
 
-This license applies only to original ExamMate materials that are owned by
-Ahnaf Shahriar Abir, including original application code, project documentation,
-and visual design. It does not replace or override the rights or license terms
-of third-party software, assets, or contributions.
+Copyright (c) 2026 Ahnaf Shahriar Abir
 
-No permission is granted to copy, modify, publish, distribute, sublicense,
-sell, or create derivative works from the covered ExamMate materials without
-prior written permission from the relevant rights holder.
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
 
-With sincere appreciation and gratitude to our respected senior Tanjim Abubokor for sharing the original Python exam-routine script that inspired ExamMate’s early project structure. This credit solely acknowledges project inspiration and does not claim ownership or grant any license to reuse that script, with all rights remaining strictly with its respective creator.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
-Third-party dependencies remain subject to their own licenses. Their license
-notices and terms must be reviewed separately before redistribution.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 
-The ExamMate application is provided "as is", without warranties to the extent
-permitted by applicable law.
+---
 
-For written permission or licensing questions,
-contact us at exammate.support@gmail.com
+Special appreciation and gratitude to our respected senior Tanjim Abubokor for sharing the foundational Python exam-routine script that inspired ExamMate's early project structure.

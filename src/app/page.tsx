@@ -2980,7 +2980,7 @@ export default function Home() {
               <p className="text-sm sm:text-base text-[#94A3B8] max-w-lg leading-relaxed font-normal">
                 Find your exact exam dates and times from the official
                 university routine. Export a clean schedule or sync with Google
-                Calendar in seconds.
+                Calendar to get automated email reminders before each exam.
               </p>
 
               {/* Action buttons */}

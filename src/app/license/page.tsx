@@ -10,27 +10,28 @@ export const metadata: Metadata = {
 
 export default function LicensePage() {
   return (
-    <PolicyPage title="ExamMate License">
+    <PolicyPage title="ExamMate MIT License">
       <p className="text-slate-200 text-sm leading-relaxed">
         <strong>
-          Copyright © 2026 Ahnaf Shahriar Abir. All rights reserved.
+          Copyright © 2026 Ahnaf Shahriar Abir.
         </strong>{" "}
-        This license covers only original ExamMate materials owned by the rights
-        holder, including original application code, project documentation, and
-        visual design.
+        ExamMate is released as open source software under the standard{" "}
+        <strong className="text-teal-300">MIT License</strong>.
       </p>
 
       <div className="space-y-6 pt-2">
         <section className="rounded-xl border border-teal-500/15 bg-teal-950/20 p-4 sm:p-5">
           <h2 className="mb-2 flex items-center gap-2 text-base font-semibold text-white">
             <span className="h-2 w-2 rounded-full bg-teal-400" />
-            Permission and restrictions
+            MIT License terms
           </h2>
           <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
-            No permission is granted to copy, modify, publish, distribute,
-            sublicense, sell, or create derivative works from covered ExamMate
-            materials without prior written permission from the relevant rights
-            holder.
+            Permission is hereby granted, free of charge, to any person obtaining a copy
+            of this software and associated documentation files (the &quot;Software&quot;), to deal
+            in the Software without restriction, including without limitation the rights
+            to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+            copies of the Software, subject to the inclusion of the above copyright notice
+            and this permission notice in all copies or substantial portions of the Software.
           </p>
         </section>
 

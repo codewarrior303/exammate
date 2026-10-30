@@ -9,6 +9,7 @@ import {
   getVerifiedGoogleAccount,
 } from "@/lib/google-account";
 import { isTrustedMutationRequest, getClientIp, checkPersistentRateLimit } from "@/lib/api-security";
+import { saveExamReminders } from "@/lib/reminders";
 
 const MAX_REQUEST_BYTES = 512 * 1024;
 const MAX_EXAMS_PER_SYNC = 100;
@@ -39,10 +40,23 @@ function formatExamTime(time: string): string {
   return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
 }
 
+function formatExamDayAndDate(isoDate: string): string {
+  if (!isoDate) return "";
+  const [year, month, day] = isoDate.split("-").map(Number);
+  const date = new Date(Date.UTC(year ?? 0, (month ?? 1) - 1, day ?? 0));
+  return new Intl.DateTimeFormat("en-US", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(date);
+}
+
 function getUpcomingReminders(startDateTime: string, now = Date.now()) {
   const startMs = Date.parse(startDateTime);
   const candidates = [
-    { method: "email" as const, minutes: 24 * 60 },
+    { method: "popup" as const, minutes: 24 * 60 },
     { method: "popup" as const, minutes: 12 * 60 },
     { method: "popup" as const, minutes: 60 },
   ];
@@ -372,6 +386,27 @@ Time: ${examTime}<br><br>
       });
       synced += 1;
     }
+
+    if (session.user.email && synced > 0) {
+      const reminderItems = exams.map((exam) => {
+        const startIso = `${exam.date}T${exam.startTime}:00+06:00`;
+        return {
+          userEmail: session.user.email,
+          studentName: getGreetingName(session.user.name, session.user.email),
+          courseCode: exam.courseCode.trim(),
+          courseTitle: exam.courseTitle.trim(),
+          faculty: exam.faculty?.trim() || undefined,
+          examDate: exam.date,
+          startTime: exam.startTime,
+          endTime: exam.endTime,
+          examStartUtc: new Date(Date.parse(startIso)),
+          examDateFormatted: formatExamDayAndDate(exam.date),
+          examTimeFormatted: `${formatExamTime(exam.startTime)} – ${formatExamTime(exam.endTime)}`,
+        };
+      });
+      void saveExamReminders(reminderItems);
+    }
+
     return NextResponse.json({ synced, calendarEmail: session.user.email, events: savedEvents });
   } catch (error) {
     return NextResponse.json({ error: "Google Calendar sync failed. Please retry." }, { status: 502 });
