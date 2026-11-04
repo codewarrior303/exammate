@@ -37,6 +37,26 @@ export async function saveExamReminders(reminders: Omit<ExamReminderRecord, "_id
     let saved = 0;
     const now = new Date();
 
+    const userEmails = [...new Set(reminders.map((r) => r.userEmail.toLowerCase().trim()))];
+    const activeKeys = new Set(
+      reminders.map((r) => `${r.userEmail.toLowerCase().trim()}|${r.courseCode.trim()}|${r.examDate}|${r.startTime}`)
+    );
+
+    // Remove obsolete unsent reminders when a user updates their routine
+    for (const email of userEmails) {
+      const existingUnsent = await collection.find({
+        userEmail: email,
+        reminderSent: false,
+      }).toArray();
+
+      for (const doc of existingUnsent) {
+        const key = `${doc.userEmail.toLowerCase().trim()}|${doc.courseCode}|${doc.examDate}|${doc.startTime}`;
+        if (!activeKeys.has(key)) {
+          await collection.deleteOne({ _id: doc._id });
+        }
+      }
+    }
+
     for (const item of reminders) {
       const filter = {
         userEmail: item.userEmail.toLowerCase().trim(),
