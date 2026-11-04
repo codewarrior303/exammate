@@ -16,6 +16,7 @@ export interface ExamReminderRecord {
   examTimeFormatted: string;
   reminderSent: boolean;
   sentAt?: Date;
+  expired?: boolean;
   createdAt: Date;
 }
 
@@ -108,7 +109,13 @@ export async function getDueReminders(now: Date = new Date()): Promise<ExamRemin
     const db = await getAuthDatabase();
     const collection = db.collection<ExamReminderRecord>(COLLECTION_NAME);
 
-    // 24 hours from now plus a 2-hour grace window so daily/hourly triggers catch upcoming exams
+    // Expire any past unsent exams whose start time has passed so they are never sent late
+    await collection.updateMany(
+      { reminderSent: false, examStartUtc: { $lt: now } },
+      { $set: { reminderSent: true, expired: true } }
+    );
+
+    // Strict 24-hour upcoming window: only exams scheduled for tomorrow
     const reminderWindowStart = now;
     const reminderWindowEnd = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
