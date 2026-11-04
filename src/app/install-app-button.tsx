@@ -117,15 +117,15 @@ export function InstallAppButton() {
 
   return (
     <>
-      <span className="group/install relative inline-flex">
+      <span className="group/install relative inline-flex shrink-0">
         <button
           type="button"
           onClick={handleInstall}
           aria-label="Install ExamMate app"
           aria-describedby="install-app-tooltip"
-          className="btn-neon-primary inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-5 py-2.5 text-xs font-bold uppercase tracking-wider focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/80"
+          className="btn-neon-primary inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-200/80 sm:gap-2 sm:px-5 sm:text-xs"
         >
-          <Download aria-hidden="true" className="h-4 w-4 shrink-0" />
+          <Download aria-hidden="true" className="h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4" />
           <span>Install app</span>
         </button>
         <span

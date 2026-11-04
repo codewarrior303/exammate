@@ -2984,13 +2984,13 @@ export default function Home() {
               </p>
 
               {/* Action buttons */}
-              <div className="flex flex-wrap items-center gap-3 pt-2">
+              <div className="flex flex-nowrap items-center gap-2 pt-2 sm:gap-3">
                 <a
                   href="#generator"
-                  className="btn-neon-primary inline-flex items-center gap-2 px-6 py-2.5 rounded-full text-xs font-bold uppercase tracking-wider"
+                  className="btn-neon-primary inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full px-3.5 py-2.5 text-[11px] font-bold uppercase tracking-wider whitespace-nowrap sm:gap-2 sm:px-6 sm:text-xs"
                 >
                   <span>Generate routine</span>
-                  <ArrowRight className="w-3.5 h-3.5" />
+                  <ArrowRight className="h-3.5 w-3.5 shrink-0" />
                 </a>
                 <InstallAppButton />
               </div>
