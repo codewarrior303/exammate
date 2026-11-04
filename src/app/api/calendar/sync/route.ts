@@ -272,18 +272,17 @@ export async function POST(request: Request) {
       const greetingName = escapeCalendarText(
         getGreetingName(session.user.name, session.user.email),
       );
-      const description = `Hello ${greetingName},<br>
-This is a scheduled automated reminder from ExamMate.<br><br>
+      const description = `Hello ${greetingName},<br><br>
 📌 <strong>EXAM DETAILS:</strong><br>
-Course: ${title}<br>
-Faculty: ${exam.faculty?.trim() ? escapeCalendarText(exam.faculty.trim()) : "Not listed in the routine"}<br>
+Course: ${title}<br><br>
+Faculty: ${exam.faculty?.trim() ? escapeCalendarText(exam.faculty.trim()) : "Not listed in the routine"}<br><br>
 Time: ${examTime}<br><br>
 ⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong><br>
-• Student ID &amp; Admit Card<br>
-• Pens, Pencils &amp; necessary stationery<br>
+• Student ID &amp; Admit Card<br><br>
+• Pens, Pencils &amp; necessary stationery<br><br>
 • Calculator (If applicable)<br><br>
 💡 <strong>Pro Tip:</strong> Please try to reach your designated exam venue at least 15–20 minutes early to avoid any last-minute rush.<br><br>
-<strong>Wishing you the best of luck with your exam!</strong><br>
+<strong>Wishing you the best of luck with your exam!🎯</strong><br><br>
 🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`;
       const requestedReminders = getUpcomingReminders(start, Date.now());
       const event = {
