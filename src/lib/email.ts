@@ -412,8 +412,10 @@ https://exammate.triizync.com
   for (const item of availableTransporters) {
     try {
       const fromAddress = item.senderAddress;
+      const replyToAddress = process.env.EMAIL_USER || "exammate.support@gmail.com";
       await item.transporter.sendMail({
         from: `"ExamMate" <${fromAddress}>`,
+        replyTo: `"ExamMate" <${replyToAddress}>`,
         to,
         subject,
         text: textBody,
