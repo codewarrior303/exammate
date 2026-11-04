@@ -35,6 +35,12 @@ export async function saveExamReminders(reminders: Omit<ExamReminderRecord, "_id
       { unique: true, background: true }
     );
 
+    // Auto-delete records 30 days after the exam date to keep database clean (TTL index)
+    await collection.createIndex(
+      { examStartUtc: 1 },
+      { expireAfterSeconds: 30 * 24 * 60 * 60, background: true }
+    );
+
     let saved = 0;
     const now = new Date();
 
