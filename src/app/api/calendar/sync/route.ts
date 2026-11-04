@@ -268,27 +268,35 @@ export async function POST(request: Request) {
       const courseTitle = escapeCalendarText(exam.courseTitle.trim());
       const courseCode = escapeCalendarText(exam.courseCode.trim());
       const title = `${courseTitle} (${courseCode})`;
-      const examTime = `${formatExamTime(exam.startTime)} - ${formatExamTime(exam.endTime)}`;
+      const examTime = `${formatExamTime(exam.startTime)} – ${formatExamTime(exam.endTime)}`;
       const greetingName = escapeCalendarText(
         getGreetingName(session.user.name, session.user.email),
       );
+      const facultyText = exam.faculty?.trim()
+        ? escapeCalendarText(exam.faculty.trim())
+        : "Not listed in the routine";
+      const roomInfo = (exam as { room?: string }).room?.trim()
+        ? escapeCalendarText((exam as { room?: string }).room!.trim())
+        : "[Room / Campus Info]";
+
       const description = `Hello ${greetingName},<br><br>
-📌 <strong>EXAM DETAILS:</strong><br>
-Course: ${title}<br><br>
-Faculty: ${exam.faculty?.trim() ? escapeCalendarText(exam.faculty.trim()) : "Not listed in the routine"}<br><br>
-Time: ${examTime}<br><br>
-⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong><br>
-• Student ID &amp; Admit Card<br><br>
-• Pens, Pencils &amp; necessary stationery<br><br>
-• Calculator (If applicable)<br><br>
-💡 <strong>Pro Tip:</strong> Please try to reach your designated exam venue at least 15–20 minutes early to avoid any last-minute rush.<br><br>
-<strong>Wishing you the best of luck with your exam!🎯</strong><br><br>
+📌 <strong>EXAM DETAILS:</strong><br><br>
+- Course: ${title}<br><br>
+- Faculty: ${facultyText}<br><br>
+- Time: ${examTime}<br><br>
+- Room / Hall: ${roomInfo}<br><br>
+⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong><br><br>
+- Student ID &amp; Admit Card<br><br>
+- Pens, Pencils &amp; necessary stationery<br><br>
+- Calculator (if permitted)<br><br>
+💡 <strong>Pro Tip:</strong> Please try to reach your exam hall at least 15–20 minutes early to avoid any last-minute rush.<br><br>
+<strong>Wishing you the best of luck with your exam! 🎯</strong><br><br>
 🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`;
       const requestedReminders = getUpcomingReminders(start, Date.now());
       const event = {
         id: eventId(exam.id),
         status: "confirmed",
-        summary: `Reminder from ExamMate: ${title}`,
+        summary: `[ExamMate] ${title}`,
         description,
         colorId: "7",
         start: { dateTime: start, timeZone: "Asia/Dhaka" },
