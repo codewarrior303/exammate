@@ -119,13 +119,17 @@ export async function getDueReminders(now: Date = new Date()): Promise<ExamRemin
     const reminderWindowStart = now;
     const reminderWindowEnd = new Date(now.getTime() + 26 * 60 * 60 * 1000);
 
-    return await collection.find({
-      reminderSent: false,
-      examStartUtc: {
-        $gt: reminderWindowStart,
-        $lte: reminderWindowEnd,
-      },
-    }).limit(2500).toArray();
+    return await collection
+      .find({
+        reminderSent: false,
+        examStartUtc: {
+          $gt: reminderWindowStart,
+          $lte: reminderWindowEnd,
+        },
+      })
+      .sort({ examStartUtc: 1, createdAt: 1 })
+      .limit(2500)
+      .toArray();
   } catch (error) {
     console.error("Failed to fetch due reminders from database:", error);
     return [];
