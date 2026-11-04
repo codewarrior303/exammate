@@ -44,7 +44,7 @@ export async function sendExamReminderEmail(params: ExamReminderEmailParams): Pr
 
   const { to, studentName, courseCode, courseTitle, faculty, examDateFormatted, examTimeFormatted } = params;
   const fromAddress = process.env.EMAIL_USER;
-  const subject = `Reminder from ExamMate: ${courseTitle} (${courseCode})`;
+  const subject = `ExamMate: Exam Reminder for ${courseTitle} (${courseCode})`;
 
   const logoPath = path.join(process.cwd(), "public/icons/email-logo.png");
   const hasLocalLogo = existsSync(logoPath);
@@ -85,34 +85,24 @@ https://exammate.triizync.com
     <tr>
       <td align="center">
         
-        <!-- Header outside the white card -->
-        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-bottom:24px;text-align:center;">
+        <!-- Header outside the white card (Left-aligned, clean logo without border or tagline, matching 1st mail) -->
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-bottom:18px;">
           <tr>
-            <td align="center">
-              <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto;">
+            <td align="left" style="text-align:left;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0;">
                 <tr>
                   ${hasLocalLogo ? `
-                  <td valign="middle" style="vertical-align:middle;padding-right:10px;">
-                    <!-- Logo badge container matching website squircle -->
-                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="background-color:#0b2530;border:1px solid rgba(94,234,212,0.5);border-radius:12px;box-shadow:0 0 16px rgba(94,234,212,0.22);">
-                      <tr>
-                        <td align="center" valign="middle" style="padding:6px 7px;line-height:0;">
-                          <img src="cid:exammate-logo" alt="ExamMate Logo" width="22" height="26" style="display:block;border:0;outline:none;width:22px;height:26px;" />
-                        </td>
-                      </tr>
-                    </table>
+                  <td valign="middle" style="vertical-align:middle;padding-right:8px;line-height:0;">
+                    <img src="cid:exammate-logo" alt="ExamMate Logo" width="22" height="26" style="display:block;border:0;outline:none;width:22px;height:26px;" />
                   </td>
                   ` : ""}
                   <td valign="middle" style="vertical-align:middle;line-height:1;">
-                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:25px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">
+                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;line-height:1;display:block;">
                       Exam<span style="color:#5eead4;">Mate</span>
                     </span>
                   </td>
                 </tr>
               </table>
-              <div style="font-size:13px;color:#99d5cf;margin-top:7px;font-weight:400;letter-spacing:0.02em;">
-                Your Smart Exam Companion
-              </div>
             </td>
           </tr>
         </table>
@@ -203,9 +193,9 @@ https://exammate.triizync.com
         <!-- Outer Dark Footer -->
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-top:24px;text-align:center;">
           <tr>
-            <td style="font-size:12px;color:#99d5cf;line-height:1.6;">
-              You're receiving this automated reminder because you synced your exam schedule on <a href="https://exammate.triizync.com" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">ExamMate</a>.<br>
-              &copy; 2026 ExamMate &middot; Developed by Ahnaf Shahriar Abir.
+            <td align="center" style="font-size:12px;color:#99d5cf;line-height:1.6;text-align:center;">
+              You're receiving this automated reminder because you synced your exam schedule on ExamMate.<br>
+              &copy; 2026 ExamMate &middot; Developed by <a href="https://exammate.triizync.com" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">Ahnaf Shahriar Abir</a>.
             </td>
           </tr>
         </table>
