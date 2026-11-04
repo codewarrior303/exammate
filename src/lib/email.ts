@@ -49,29 +49,29 @@ export async function sendExamReminderEmail(params: ExamReminderEmailParams): Pr
   const logoPath = path.join(process.cwd(), "public/icons/email-logo.png");
   const hasLocalLogo = existsSync(logoPath);
 
-  const textBody = `ExamMate: Exam Reminder for ${courseTitle} (${courseCode})
-${examDateFormatted} ⋅ ${examTimeFormatted}
+  const textBody = `Hello ${studentName},
 
-Hello ${studentName},
+Hope your exam preparation is going smoothly.
+This is a friendly automated reminder from ExamMate that you have an upcoming exam scheduled for tomorrow.
 
-Hope your exam preparation is going well. This is a scheduled reminder from ExamMate to help you stay ahead, organized, and on time for your upcoming final exam.
+📌 Exam Schedule & Details:
 
-📌 EXAM SCHEDULE & DETAILS:
-• Course: ${courseTitle} (${courseCode})
-${faculty ? `• Faculty: ${faculty}\n` : ""}• Date: ${examDateFormatted}
-• Time: ${examTimeFormatted}
+Course: ${courseTitle} (${courseCode})
+${faculty ? `Faculty: ${faculty}\n` : ""}Date: ${examDateFormatted}
+Time: ${examTimeFormatted}
 
-⚠️ CHECKLIST BEFORE ENTERING THE HALL:
-• Make sure you have your Student ID Card and Admit Card.
-• Keep necessary stationery (pens, pencils, ruler, eraser) organized.
-• Approved scientific calculator (if applicable for this exam).
-• Arrive at the exam center at least 20–25 minutes early to avoid unexpected delays.
+⚠️ Checklist Before Entering the Hall:
 
-Wishing you the very best of luck for your exam! Stay calm and give it your best shot! 🎯
+• Student ID Card & Admit Card.
+• Necessary stationery (pens, pencils, ruler).
+• Approved calculator (if permitted for this exam).
+• Arrive at the exam hall at least 20 minutes before start time.
+
+Best of luck! 🎯
 
 Warm regards,
 Team ExamMate
-https://exammate.triizync.com/
+https://exammate.triizync.com
 `;
 
   const htmlBody = `<!DOCTYPE html>
@@ -81,113 +81,102 @@ https://exammate.triizync.com/
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>${escapeHtml(subject)}</title>
 </head>
-<body style="margin:0;padding:0;background-color:#0b171e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
-  <!-- Outer Wrapper with signature dark background (#0b171e) -->
-  <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#0b171e;padding:40px 16px;">
+<body style="margin:0;padding:0;background-color:#0a1118;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;">
+  <!-- Outer Wrapper matching website background (#0a1118 to #060b10) -->
+  <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#0a1118;background:linear-gradient(180deg,#0e1d27 0%,#0a1118 60%,#060b10 100%);padding:40px 16px;">
     <tr>
       <td align="center">
         
-        <!-- Header outside the white card (Programming Hero style) -->
-        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-bottom:24px;text-align:center;">
+        <!-- Header outside the white card (Programming Hero style + 2nd pic logo badge) -->
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-bottom:26px;text-align:center;">
           <tr>
             <td align="center">
               <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                 <tr>
                   ${hasLocalLogo ? `
-                  <td valign="middle" style="vertical-align:middle;padding-right:8px;line-height:0;">
-                    <img src="cid:exammate-logo" alt="ExamMate Logo" width="22" height="26" style="display:block;border:0;outline:none;width:22px;height:26px;" />
+                  <td valign="middle" style="vertical-align:middle;padding-right:10px;">
+                    <!-- Logo badge container matching website 2nd picture -->
+                    <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="background-color:#0e1f29;border:1px solid rgba(94,234,212,0.45);border-radius:12px;box-shadow:0 0 16px rgba(94,234,212,0.15);">
+                      <tr>
+                        <td align="center" valign="middle" style="padding:6px 7px;line-height:0;">
+                          <img src="cid:exammate-logo" alt="ExamMate Logo" width="22" height="26" style="display:block;border:0;outline:none;width:22px;height:26px;" />
+                        </td>
+                      </tr>
+                    </table>
                   </td>
                   ` : ""}
                   <td valign="middle" style="vertical-align:middle;line-height:1;">
-                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">
-                      Exam<span style="color:#2dd4bf;">Mate</span>
+                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:25px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;">
+                      Exam<span style="color:#5eead4;">Mate</span>
                     </span>
                   </td>
                 </tr>
               </table>
-              <div style="font-size:13px;color:#94a3b8;margin-top:6px;font-weight:400;letter-spacing:0.02em;">
+              <div style="font-size:13px;color:#94a3b8;margin-top:7px;font-weight:400;letter-spacing:0.02em;">
                 Your Smart Exam Companion
               </div>
             </td>
           </tr>
         </table>
 
-        <!-- Center Premium White Card (#ffffff) -->
-        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;background-color:#ffffff;border-radius:18px;border-collapse:separate;box-shadow:0 12px 36px rgba(0,0,0,0.35);overflow:hidden;">
+        <!-- Center Premium White Card (Pure white, natural text flow like Programming Hero) -->
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;background-color:#ffffff;border-radius:16px;border-collapse:separate;box-shadow:0 12px 36px rgba(0,0,0,0.35);overflow:hidden;">
           <tr>
             <td style="padding:36px 32px 32px;color:#1e293b;line-height:1.65;font-size:14.5px;">
               
               <!-- Greeting -->
-              <h2 style="margin:0 0 16px 0;color:#0f172a;font-size:20px;font-weight:700;letter-spacing:-0.02em;">
+              <h2 style="margin:0 0 14px 0;color:#0f172a;font-size:18px;font-weight:700;">
                 Hello ${escapeHtml(studentName)},
               </h2>
               
-              <p style="margin:0 0 22px 0;color:#475569;font-size:14.5px;line-height:1.65;">
-                Hope your exam preparation is going well. This is a scheduled reminder from <strong style="color:#0f172a;">ExamMate</strong> to help you stay ahead, organized, and on time for your upcoming final exam.
+              <p style="margin:0 0 12px 0;color:#334155;font-size:14.5px;line-height:1.65;">
+                Hope your exam preparation is going smoothly.
+              </p>
+              
+              <p style="margin:0 0 22px 0;color:#334155;font-size:14.5px;line-height:1.65;">
+                This is a friendly automated reminder from <strong>ExamMate</strong> that you have an upcoming exam scheduled for tomorrow.
               </p>
 
-              <!-- Exam Details Box -->
-              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-left:4px solid #0d9488;border-radius:8px;margin-bottom:20px;">
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <div style="font-size:14.5px;font-weight:700;color:#0f172a;margin-bottom:10px;">
-                      📌 Exam Schedule &amp; Details:
-                    </div>
-                    <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size:13.5px;line-height:1.6;color:#334155;">
-                      <tr>
-                        <td width="85" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;">Course:</td>
-                        <td valign="top" style="font-weight:600;color:#0f172a;padding:3px 0;">${escapeHtml(courseTitle)} (${escapeHtml(courseCode)})</td>
-                      </tr>
-                      ${faculty ? `
-                      <tr>
-                        <td width="85" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;">Faculty:</td>
-                        <td valign="top" style="color:#334155;padding:3px 0;">${escapeHtml(faculty)}</td>
-                      </tr>` : ""}
-                      <tr>
-                        <td width="85" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;">Date:</td>
-                        <td valign="top" style="color:#334155;padding:3px 0;">${escapeHtml(examDateFormatted)}</td>
-                      </tr>
-                      <tr>
-                        <td width="85" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;">Time:</td>
-                        <td valign="top" style="color:#0d9488;font-weight:700;padding:3px 0;">${escapeHtml(examTimeFormatted)}</td>
-                      </tr>
-                    </table>
-                  </td>
-                </tr>
-              </table>
+              <!-- Exam Schedule & Details -->
+              <div style="margin:0 0 22px 0;">
+                <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:8px;">
+                  📌 Exam Schedule &amp; Details:
+                </div>
+                <div style="padding-left:4px;color:#334155;font-size:14px;line-height:1.8;">
+                  <strong>Course:</strong> ${escapeHtml(courseTitle)} (${escapeHtml(courseCode)})<br>
+                  ${faculty ? `<strong>Faculty:</strong> ${escapeHtml(faculty)}<br>` : ""}
+                  <strong>Date:</strong> ${escapeHtml(examDateFormatted)}<br>
+                  <strong>Time:</strong> <span style="color:#0f766e;font-weight:700;">${escapeHtml(examTimeFormatted)}</span>
+                </div>
+              </div>
 
-              <!-- Critical Checklist Box -->
-              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#fffbeb;border-left:4px solid #f59e0b;border-radius:8px;margin-bottom:24px;">
-                <tr>
-                  <td style="padding:16px 20px;">
-                    <div style="font-size:14.5px;font-weight:700;color:#92400e;margin-bottom:8px;">
-                      ⚠️ Checklist Before Entering the Hall:
-                    </div>
-                    <ul style="margin:0;padding-left:18px;color:#78350f;font-size:13.5px;line-height:1.7;">
-                      <li style="margin-bottom:4px;">Make sure you have your <strong>Student ID Card</strong> and <strong>Admit Card</strong>.</li>
-                      <li style="margin-bottom:4px;">Keep necessary stationery (pens, pencils, ruler, eraser) organized.</li>
-                      <li style="margin-bottom:4px;">Approved scientific calculator (if applicable for this exam).</li>
-                      <li>Arrive at the exam center at least <strong>20–25 minutes early</strong> to avoid unexpected delays.</li>
-                    </ul>
-                  </td>
-                </tr>
-              </table>
+              <!-- Checklist Before Entering the Hall -->
+              <div style="margin:0 0 24px 0;">
+                <div style="font-size:15px;font-weight:700;color:#0f172a;margin-bottom:8px;">
+                  ⚠️ Checklist Before Entering the Hall:
+                </div>
+                <ul style="margin:0;padding-left:20px;color:#334155;font-size:14px;line-height:1.75;">
+                  <li>Student ID Card &amp; Admit Card.</li>
+                  <li>Necessary stationery (pens, pencils, ruler).</li>
+                  <li>Approved calculator (if permitted for this exam).</li>
+                  <li>Arrive at the exam hall at least 20 minutes before start time.</li>
+                </ul>
+              </div>
 
-              <!-- Encouraging Closing Note -->
-              <p style="margin:0 0 24px 0;color:#0f172a;font-weight:600;font-size:14.5px;line-height:1.6;">
-                Wishing you the very best of luck for your exam! Stay calm and give it your best shot! 🎯
+              <!-- Encouragement -->
+              <p style="margin:0 0 24px 0;color:#0f172a;font-weight:700;font-size:15px;">
+                Best of luck! 🎯
               </p>
 
-              <!-- Sign-off -->
-              <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="border-top:1px solid #e2e8f0;padding-top:20px;">
-                <tr>
-                  <td style="font-size:13.5px;color:#64748b;line-height:1.6;">
-                    Warm regards,<br>
-                    <strong style="color:#0f172a;font-size:14.5px;">Team ExamMate</strong><br>
-                    <a href="https://exammate.triizync.com" style="color:#0d9488;text-decoration:none;font-weight:500;" target="_blank">exammate.triizync.com</a>
-                  </td>
-                </tr>
-              </table>
+              <!-- Divider line -->
+              <hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0 16px 0;">
+
+              <!-- Sign-off with clickable ExamMate link -->
+              <p style="margin:0;font-size:14px;color:#64748b;line-height:1.6;">
+                Warm regards,<br>
+                <strong style="color:#0f172a;">Team <a href="https://exammate.triizync.com" style="color:#0d9488;text-decoration:none;font-weight:700;" target="_blank">ExamMate</a></strong><br>
+                <a href="https://exammate.triizync.com" style="color:#0d9488;text-decoration:none;font-size:13.5px;" target="_blank">https://exammate.triizync.com</a>
+              </p>
 
             </td>
           </tr>
@@ -197,7 +186,7 @@ https://exammate.triizync.com/
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-top:24px;text-align:center;">
           <tr>
             <td style="font-size:12px;color:#94a3b8;line-height:1.6;">
-              You're receiving this automated reminder because you synced your exam schedule on ExamMate.<br>
+              You're receiving this automated reminder because you synced your exam schedule on <a href="https://exammate.triizync.com" style="color:#5eead4;text-decoration:none;" target="_blank">ExamMate</a>.<br>
               &copy; 2026 ExamMate &middot; Developed by Ahnaf Shahriar Abir.
             </td>
           </tr>
