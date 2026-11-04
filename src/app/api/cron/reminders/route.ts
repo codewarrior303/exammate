@@ -33,25 +33,38 @@ async function handleReminders(request: NextRequest) {
     let sent = 0;
     let failed = 0;
 
+    // Group due reminders by userEmail so users with multiple exams receive one consolidated email
+    const userGroups = new Map<string, typeof dueReminders>();
     for (const reminder of dueReminders) {
-      if (!reminder._id) continue;
+      const email = reminder.userEmail.toLowerCase().trim();
+      const list = userGroups.get(email) ?? [];
+      list.push(reminder);
+      userGroups.set(email, list);
+    }
 
+    for (const [userEmail, reminders] of userGroups) {
       const result = await sendExamReminderEmail({
-        to: reminder.userEmail,
-        studentName: reminder.studentName,
-        courseCode: reminder.courseCode,
-        courseTitle: reminder.courseTitle,
-        faculty: reminder.faculty,
-        examDateFormatted: reminder.examDateFormatted,
-        examTimeFormatted: reminder.examTimeFormatted,
+        to: userEmail,
+        studentName: reminders[0].studentName,
+        exams: reminders.map((r) => ({
+          courseCode: r.courseCode,
+          courseTitle: r.courseTitle,
+          faculty: r.faculty,
+          examDateFormatted: r.examDateFormatted,
+          examTimeFormatted: r.examTimeFormatted,
+        })),
       });
 
       if (result.success) {
-        await markReminderSent(reminder._id);
-        sent += 1;
+        for (const r of reminders) {
+          if (r._id) {
+            await markReminderSent(r._id);
+          }
+        }
+        sent += reminders.length;
       } else {
-        console.error(`Failed to send reminder for ${reminder.courseCode} to ${reminder.userEmail}:`, result.error);
-        failed += 1;
+        console.error(`Failed to send reminder for ${userEmail}:`, result.error);
+        failed += reminders.length;
       }
     }
 

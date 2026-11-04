@@ -1,13 +1,22 @@
 import nodemailer from "nodemailer";
 
-export interface ExamReminderEmailParams {
-  to: string;
-  studentName: string;
+export interface ExamReminderItem {
   courseCode: string;
   courseTitle: string;
   faculty?: string;
   examDateFormatted: string;
   examTimeFormatted: string;
+}
+
+export interface ExamReminderEmailParams {
+  to: string;
+  studentName: string;
+  exams?: ExamReminderItem[];
+  courseCode?: string;
+  courseTitle?: string;
+  faculty?: string;
+  examDateFormatted?: string;
+  examTimeFormatted?: string;
 }
 
 function getTransporter() {
@@ -65,33 +74,63 @@ export async function sendExamReminderEmail(
     };
   }
 
-  const {
-    to,
-    studentName,
-    courseCode,
-    courseTitle,
-    faculty,
-    examDateFormatted,
-    examTimeFormatted,
-  } = params;
-  const fromAddress = process.env.EMAIL_USER;
-  const subject = `ExamMate Reminder: ${courseTitle} (${courseCode})`;
+  const { to, studentName } = params;
+  const rawExams: ExamReminderItem[] =
+    params.exams && params.exams.length > 0
+      ? params.exams
+      : [
+          {
+            courseCode: params.courseCode ?? "",
+            courseTitle: params.courseTitle ?? "",
+            faculty: params.faculty,
+            examDateFormatted: params.examDateFormatted ?? "",
+            examTimeFormatted: params.examTimeFormatted ?? "",
+          },
+        ];
 
+  const exams = rawExams.filter((e) => e.courseCode || e.courseTitle);
+  const isMultiple = exams.length > 1;
+
+  let subject: string;
+  if (!isMultiple) {
+    const single = exams[0] ?? { courseTitle: "Exam", courseCode: "" };
+    subject = `ExamMate Reminder: ${single.courseTitle} (${single.courseCode})`;
+  } else {
+    const codes = exams.map((e) => e.courseCode);
+    const formattedCodes =
+      codes.length === 2
+        ? `${codes[0]} & ${codes[1]}`
+        : `${codes.slice(0, -1).join(", ")} & ${codes[codes.length - 1]}`;
+    subject = `ExamMate Reminder: ${formattedCodes} (${exams.length} Exams Tomorrow)`;
+  }
+
+  const fromAddress = process.env.EMAIL_USER;
   const currentYear = new Date().getFullYear();
   const antiTrimToken = `\u200C<!-- ${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)} -->`;
   const footerDisclaimer = injectAntiTrimEntropy(
     "You're receiving this automated reminder because you synced your exam schedule on ExamMate.",
   );
 
+  const introTextHtml = isMultiple
+    ? `Hope your preparation is going well!<br>This is a quick reminder from <strong>ExamMate</strong> that you have ${exams.length} upcoming exams tomorrow.`
+    : `Hope your preparation is going well!<br>This is a quick reminder from <strong>ExamMate</strong> that you have an upcoming exam tomorrow.`;
+
+  const introTextPlain = isMultiple
+    ? `Hope your preparation is going well!\nThis is a quick reminder from ExamMate that you have ${exams.length} upcoming exams tomorrow.`
+    : `Hope your preparation is going well!\nThis is a quick reminder from ExamMate that you have an upcoming exam tomorrow.`;
+
+  const textExams = exams
+    .map((exam, index) => {
+      const prefix = isMultiple ? `Exam ${index + 1}:\n\n` : "";
+      return `${prefix}Course: ${exam.courseTitle} (${exam.courseCode})\n${exam.faculty ? `Faculty: ${exam.faculty}\n` : ""}Date: ${exam.examDateFormatted}\nTime: ${exam.examTimeFormatted}`;
+    })
+    .join("\n\n──────────────────────────────────────────\n\n");
+
   const textBody = `Hello ${studentName},
 
-Hope your preparation is going well!
-This is a quick reminder from ExamMate that you have an upcoming exam tomorrow.
+${introTextPlain}
 
-📌 Exam Schedule & Details:
-Course: ${courseTitle} (${courseCode})
-${faculty ? `Faculty: ${faculty}\n` : ""}Date: ${examDateFormatted}
-Time: ${examTimeFormatted}
+${isMultiple ? "📌 Tomorrow's Exam Schedule:\n" : "📌 Exam Schedule & Details:\n"}${textExams}
 
 ⚠️ Checklist Before Entering the Hall:
 • Student ID Card & Admit Card.
@@ -99,7 +138,7 @@ Time: ${examTimeFormatted}
 • Approved calculator (if permitted for this exam).
 • Arrive at the exam hall at least 15 - 20 minutes before start time.
 
-Wishing you the best of luck for your exam!🎯
+Wishing you the best of luck for your ${isMultiple ? "exams" : "exam"}!🎯
 
 Warm regards,
 Team ExamMate
@@ -165,40 +204,56 @@ https://exammate.triizync.com
               </h2>
               
               <p style="margin:0 0 20px 0;color:#334155;font-size:14.5px;line-height:1.65;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                Hope your preparation is going well!<br>
-                This is a quick reminder from <strong>ExamMate</strong> that you have an upcoming exam tomorrow.
+                ${introTextHtml}
               </p>
 
               <!-- Box 1: Exam Schedule & Details (Light cyan/slate box with teal accent) -->
               <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-left:4px solid #0d9488;border-radius:8px;margin-bottom:20px;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
                 <tr>
                   <td style="padding:16px 20px;">
-                    <div style="font-size:14.5px;font-weight:700;color:#0f172a;margin-bottom:8px;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                      📌 Exam Schedule &amp; Details:
+                    <div style="font-size:14.5px;font-weight:700;color:#0f172a;margin-bottom:10px;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      📌 ${isMultiple ? "Tomorrow&#39;s Exam Schedule:" : "Exam Schedule &amp; Details:"}
                     </div>
+                    ${exams
+                      .map(
+                        (exam, index) => `
+                    ${
+                      isMultiple
+                        ? `<div style="font-size:13.5px;font-weight:700;color:#0d9488;margin:${index > 0 ? "14px" : "4px"} 0 8px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+                      Exam ${index + 1}:
+                    </div>`
+                        : ""
+                    }
                     <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="font-size:13.5px;line-height:1.6;color:#334155;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
                       <tr>
                         <td width="75" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Course:</td>
-                        <td valign="top" style="font-weight:600;color:#0f172a;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(courseTitle)} (${escapeHtml(courseCode)})</td>
+                        <td valign="top" style="font-weight:600;color:#0f172a;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(exam.courseTitle)} (${escapeHtml(exam.courseCode)})</td>
                       </tr>
                       ${
-                        faculty
+                        exam.faculty
                           ? `
                       <tr>
                         <td width="75" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Faculty:</td>
-                        <td valign="top" style="color:#334155;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(faculty)}</td>
+                        <td valign="top" style="color:#334155;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(exam.faculty)}</td>
                       </tr>`
                           : ""
                       }
                       <tr>
                         <td width="75" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Date:</td>
-                        <td valign="top" style="color:#334155;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(examDateFormatted)}</td>
+                        <td valign="top" style="color:#334155;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(exam.examDateFormatted)}</td>
                       </tr>
                       <tr>
                         <td width="75" valign="top" style="color:#64748b;font-weight:600;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">Time:</td>
-                        <td valign="top" style="color:#0d9488;font-weight:700;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(examTimeFormatted)}</td>
+                        <td valign="top" style="color:#0d9488;font-weight:700;padding:3px 0;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">${escapeHtml(exam.examTimeFormatted)}</td>
                       </tr>
                     </table>
+                    ${
+                      isMultiple && index < exams.length - 1
+                        ? `<hr style="border:none;border-top:1px dashed #cbd5e1;margin:14px 0;">`
+                        : ""
+                    }`,
+                      )
+                      .join("")}
                   </td>
                 </tr>
               </table>
@@ -222,7 +277,7 @@ https://exammate.triizync.com
 
               <!-- Centered Encouragement -->
               <p style="margin:0 0 24px 0;color:#0f172a;font-weight:700;font-size:15px;text-align:center;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                Wishing you the best of luck for your exam!🎯
+                Wishing you the best of luck for your ${isMultiple ? "exams" : "exam"}!🎯
               </p>
 
               <!-- Divider line -->
