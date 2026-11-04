@@ -61,6 +61,8 @@ export async function sendExamReminderEmail(
   const fromAddress = process.env.EMAIL_USER;
   const subject = `ExamMate Reminder: ${courseTitle} (${courseCode})`;
 
+  const currentYear = new Date().getFullYear();
+
   const textBody = `Hello ${studentName},
 
 Hope your exam preparation is going smoothly.
@@ -209,7 +211,7 @@ https://exammate.triizync.com
           <tr>
             <td align="center" style="font-size:12px;color:#99d5cf;line-height:1.6;text-align:center;">
               You're receiving this automated reminder because you synced your exam schedule on ExamMate.<br>
-              &copy; 2026 ExamMate &middot; Developed by <a href="https://ahnafabir.vercel.app" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">Ahnaf Shahriar Abir</a>.
+              &copy; ${currentYear} ExamMate &middot; Developed by <a href="https://ahnafabir.vercel.app" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">Ahnaf Shahriar Abir</a>.
             </td>
           </tr>
         </table>
