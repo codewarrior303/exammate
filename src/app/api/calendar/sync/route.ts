@@ -279,19 +279,19 @@ export async function POST(request: Request) {
         ? escapeCalendarText((exam as { room?: string }).room!.trim())
         : "[Room / Campus Info]";
 
-      const description = `Hello ${greetingName},<br><br>
-📌 <strong>EXAM DETAILS:</strong><br><br>
-- Course: ${title}<br><br>
-- Faculty: ${facultyText}<br><br>
-- Time: ${examTime}<br><br>
-- Room / Hall: ${roomInfo}<br><br>
-⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong><br><br>
-- Student ID &amp; Admit Card<br><br>
-- Pens, Pencils &amp; necessary stationery<br><br>
-- Calculator (if permitted)<br><br>
-💡 <strong>Pro Tip:</strong> Please try to reach your exam hall at least 15–20 minutes early to avoid any last-minute rush.<br><br>
-<strong>Wishing you the best of luck with your exam! 🎯</strong><br><br>
-🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`;
+      const description = `Hello ${greetingName},<br>
+📌 <b>EXAM DETAILS:</b><br>
+• <b>Course:</b> <i>${title}</i><br>
+• <b>Faculty:</b> <i>${facultyText}</i><br>
+• <b>Time:</b> <i>${examTime}</i><br>
+• <b>Room / Hall:</b> <i>${roomInfo}</i><br>
+⚠️ <b>CRITICAL CHECKLIST (Before entering the hall):</b><br>
+• <i>Student ID &amp; Admit Card</i><br>
+• <i>Pens, Pencils &amp; necessary stationery</i><br>
+• <i>Calculator (if permitted)</i><br>
+💡 <b>Pro Tip:</b> <i>Please try to reach your exam hall at least 15–20 minutes early to avoid any last-minute rush.</i><br>
+<i>Wishing you the best of luck with your exam!</i> 🎯<br>
+🚀 Powered by <a href="https://exammate.triizync.com/">ExamMate</a>`;
       const requestedReminders = getUpcomingReminders(start, Date.now());
       const event = {
         id: eventId(exam.id),
