@@ -69,10 +69,13 @@ export default function PrivacyPage() {
             <span className="h-2 w-2 rounded-full bg-teal-400" />
             Optional Google Drive access
           </h2>
-          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
+          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm [overflow-wrap:anywhere]">
             Private Drive import is optional. When you request it, ExamMate
-            asks Google for <code>https://www.googleapis.com/auth/drive.readonly</code>.
-            Google defines this scope as read access to Drive files available
+            asks Google for{" "}
+            <code className="break-all rounded border border-teal-500/20 bg-teal-950/60 px-1.5 py-0.5 font-mono text-[11px] text-teal-200 sm:text-xs">
+              https://www.googleapis.com/auth/drive.readonly
+            </code>
+            . Google defines this scope as read access to Drive files available
             to the authorized account. In ExamMate, the import endpoint is
             limited to the single file ID in the link you pasted; it does not
             enumerate or search Drive, or edit, delete, or share files. Google
@@ -89,13 +92,26 @@ export default function PrivacyPage() {
             <span className="h-2 w-2 rounded-full bg-teal-400" />
             Optional Google Calendar access
           </h2>
-          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
+          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm [overflow-wrap:anywhere]">
             Calendar sync is optional and begins only when you choose to
             connect/sync. For this feature, ExamMate requests the Google
-            identity scopes <code>openid</code>, <code>email</code>, and{" "}
-            <code>profile</code>, plus{" "}
-            <code>https://www.googleapis.com/auth/calendar.events.owned</code>.
-            Google defines that Calendar scope as permission to view, create,
+            identity scopes{" "}
+            <code className="rounded border border-teal-500/20 bg-teal-950/60 px-1.5 py-0.5 font-mono text-[11px] text-teal-200 sm:text-xs">
+              openid
+            </code>
+            ,{" "}
+            <code className="rounded border border-teal-500/20 bg-teal-950/60 px-1.5 py-0.5 font-mono text-[11px] text-teal-200 sm:text-xs">
+              email
+            </code>
+            , and{" "}
+            <code className="rounded border border-teal-500/20 bg-teal-950/60 px-1.5 py-0.5 font-mono text-[11px] text-teal-200 sm:text-xs">
+              profile
+            </code>
+            , plus{" "}
+            <code className="break-all rounded border border-teal-500/20 bg-teal-950/60 px-1.5 py-0.5 font-mono text-[11px] text-teal-200 sm:text-xs">
+              https://www.googleapis.com/auth/calendar.events.owned
+            </code>
+            . Google defines that Calendar scope as permission to view, create,
             change, and delete events on calendars you own. ExamMate uses it to
             create and update only the ExamMate exam events it generates in
             your primary calendar; the application code does not list or read
@@ -137,7 +153,7 @@ export default function PrivacyPage() {
             internet service can guarantee absolute security. To request
             deletion of server-side account data, contact{" "}
             <SupportEmailLink
-              className="text-teal-300 underline underline-offset-4"
+              className="break-all text-teal-300 underline underline-offset-4"
             />
             . Clearing local routine data and disconnecting Google are separate
             actions.
@@ -149,7 +165,7 @@ export default function PrivacyPage() {
             <span className="h-2 w-2 rounded-full bg-teal-400" />
             Service providers and analytics
           </h2>
-          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
+          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm [overflow-wrap:anywhere]">
             ExamMate uses Google for sign-in and Calendar, MongoDB for
             server-side authentication records, and Vercel to host the website.
             Vercel Analytics and Speed Insights are enabled to measure site
@@ -168,7 +184,7 @@ export default function PrivacyPage() {
             <span className="h-2 w-2 rounded-full bg-teal-400" />
             Your choices and policy updates
           </h2>
-          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm">
+          <p className="text-xs leading-relaxed text-slate-300 sm:text-sm [overflow-wrap:anywhere]">
             You can use routine upload, parsing, and exports without Google
             sign-in. You can decline Calendar sync, clear the locally stored
             routine, disconnect Google, or revoke access from your Google
@@ -177,41 +193,46 @@ export default function PrivacyPage() {
             any required Google authorization will be requested. Questions or
             deletion requests: {" "}
             <SupportEmailLink
-              className="text-teal-300 underline underline-offset-4"
+              className="break-all text-teal-300 underline underline-offset-4"
             />
             .
           </p>
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-teal-400/25 bg-gradient-to-br from-teal-500/[0.10] via-[#10232B]/90 to-emerald-500/[0.07] p-5 shadow-[0_16px_40px_rgba(0,0,0,0.22)] sm:p-6">
-          <div className="flex items-start gap-4">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-300/25 bg-teal-400/10 text-teal-200">
-              <svg
-                aria-hidden="true"
-                viewBox="0 0 24 24"
-                fill="none"
-                className="h-5 w-5"
-              >
-                <path
-                  d="M12 3 19 6v5c0 4.7-2.9 8-7 10-4.1-2-7-5.3-7-10V6l7-3Z"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="m9 12 2 2 4-4"
-                  stroke="currentColor"
-                  strokeWidth="1.7"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </div>
-            <div className="min-w-0">
-              <h2 className="text-base font-semibold text-white sm:text-lg">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+            <div className="flex items-center gap-3 sm:block">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-teal-300/25 bg-teal-400/10 text-teal-200">
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  className="h-5 w-5"
+                >
+                  <path
+                    d="M12 3 19 6v5c0 4.7-2.9 8-7 10-4.1-2-7-5.3-7-10V6l7-3Z"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinejoin="round"
+                  />
+                  <path
+                    d="m9 12 2 2 4-4"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </div>
+              <h2 className="text-base font-semibold text-white sm:hidden">
                 No ads. No AI training.
               </h2>
-              <p className="mt-2 text-xs leading-relaxed text-slate-300 sm:text-sm">
+            </div>
+            <div className="min-w-0">
+              <h2 className="hidden text-base font-semibold text-white sm:block sm:text-lg">
+                No ads. No AI training.
+              </h2>
+              <p className="mt-2 text-xs leading-relaxed text-slate-300 sm:text-sm [overflow-wrap:anywhere]">
                 ExamMate does not sell your personal data, run third-party
                 advertising trackers, build cross-site advertising profiles,
                 or use Google user data to train AI models. Vercel Analytics
@@ -219,12 +240,12 @@ export default function PrivacyPage() {
                 measurements described above; ExamMate does not use those
                 measurements for advertising.
               </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-teal-300/20 bg-teal-300/[0.08] px-2.5 py-1 text-[10px] font-medium tracking-wide text-teal-100 sm:text-[11px]">
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center rounded-full border border-teal-300/20 bg-teal-300/[0.08] px-2.5 py-1 text-[10px] font-medium tracking-wide text-teal-100 whitespace-nowrap sm:text-[11px]">
                   NO THIRD-PARTY ADS
                 </span>
-                <span className="rounded-full border border-teal-300/20 bg-teal-300/[0.08] px-2.5 py-1 text-[10px] font-medium tracking-wide text-teal-100 sm:text-[11px]">
-                  NO GOOGLE DATA AI TRAINING
+                <span className="inline-flex items-center rounded-full border border-teal-300/20 bg-teal-300/[0.08] px-2.5 py-1 text-[10px] font-medium tracking-wide text-teal-100 whitespace-nowrap sm:text-[11px]">
+                  NO GOOGLE DATA &amp; AI TRAINING
                 </span>
               </div>
             </div>
