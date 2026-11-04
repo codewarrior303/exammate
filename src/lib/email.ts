@@ -226,7 +226,8 @@ export async function sendExamReminderEmail(
 
 ${introTextPlain}
 
-${isMultiple ? "📌 Tomorrow's Exam Schedule:\n" : "📌 Exam Schedule & Details:\n"}${textExams}
+📌 Exam Schedule & Details:
+${textExams}
 
 ⚠️ Checklist Before Entering the Hall:
 • Student ID Card & Admit Card.
@@ -308,7 +309,7 @@ https://exammate.triizync.com
                 <tr>
                   <td style="padding:16px 20px;">
                     <div style="font-size:14.5px;font-weight:700;color:#0f172a;margin-bottom:10px;font-family:'Jost',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-                      📌 ${isMultiple ? "Tomorrow&#39;s Exam Schedule:" : "Exam Schedule &amp; Details:"}
+                      📌 Exam Schedule &amp; Details:
                     </div>
                     ${exams
                       .map(
