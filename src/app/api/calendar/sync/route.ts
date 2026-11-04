@@ -275,23 +275,21 @@ export async function POST(request: Request) {
       const facultyText = exam.faculty?.trim()
         ? escapeCalendarText(exam.faculty.trim())
         : "Not listed in the routine";
-      const roomInfo = (exam as { room?: string }).room?.trim()
-        ? escapeCalendarText((exam as { room?: string }).room!.trim())
-        : "[Room / Campus Info]";
 
-      const description = `Hello ${greetingName},<br><br>
-📌 <strong>EXAM DETAILS:</strong><br>
-Course: ${title}<br>
-Faculty: ${facultyText}<br>
-Time: ${examTime}<br>
-Room / Hall: ${roomInfo}<br><br>
-⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong><br>
-• Student ID &amp; Admit Card<br>
-• Pens, Pencils &amp; necessary stationery<br>
-• Calculator (if permitted)<br><br>
-💡 <strong>Pro Tip:</strong> Please try to reach your exam hall at least 15–20 minutes early to avoid any last-minute rush.<br><br>
-<strong>Wishing you the best of luck with your exam! 🎯</strong><br>
-🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`;
+      const description = [
+        `Hello ${greetingName},`,
+        `📌 <strong>EXAM DETAILS:</strong>`,
+        `Course: ${title}`,
+        `Faculty: ${facultyText}`,
+        `Time: ${examTime}`,
+        `⚠️ <strong>CRITICAL CHECKLIST (Before entering the hall):</strong>`,
+        `• Student ID &amp; Admit Card`,
+        `• Pens, Pencils &amp; necessary stationery`,
+        `• Calculator (If applicable)`,
+        `💡 <strong>Pro Tip:</strong> Please try to reach your designated exam venue at least 15–20 minutes early to avoid any last-minute rush.`,
+        `<strong>Wishing you the best of luck with your exam!🎯</strong>`,
+        `🚀 Powered by <a href="https://exammate.triizync.com/"><strong>ExamMate</strong></a>`,
+      ].join("<br><br>");
       const requestedReminders = getUpcomingReminders(start, Date.now());
       const event = {
         id: eventId(exam.id),
