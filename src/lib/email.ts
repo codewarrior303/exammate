@@ -65,8 +65,8 @@ export async function sendExamReminderEmail(
 
   const textBody = `Hello ${studentName},
 
-Hope your exam preparation is going smoothly.
-This is a friendly automated reminder from ExamMate that you have an upcoming exam scheduled for tomorrow.
+Hope your preparation is going well!
+This is a quick reminder from ExamMate that you have an upcoming exam tomorrow.
 
 📌 Exam Schedule & Details:
 Course: ${courseTitle} (${courseCode})
@@ -133,8 +133,8 @@ https://exammate.triizync.com
               </h2>
               
               <p style="margin:0 0 20px 0;color:#334155;font-size:14.5px;line-height:1.65;">
-                Hope your exam preparation is going smoothly.<br>
-                This is a friendly automated reminder from <strong>ExamMate</strong> that you have an upcoming exam scheduled for tomorrow.
+                Hope your preparation is going well!<br>
+                This is a quick reminder from <strong>ExamMate</strong> that you have an upcoming exam tomorrow.
               </p>
 
               <!-- Box 1: Exam Schedule & Details (Light cyan/slate box with teal accent) -->
