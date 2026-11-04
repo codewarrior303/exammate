@@ -38,6 +38,22 @@ function escapeHtml(text: string): string {
   );
 }
 
+function injectAntiTrimEntropy(text: string): string {
+  const zeroWidthChars = ["&zwnj;", "&#8203;"];
+  const words = text.split(" ");
+  return words
+    .map((word) => {
+      if (word.length > 3 && Math.random() > 0.3) {
+        const splitIndex = Math.floor(word.length / 2);
+        const char =
+          zeroWidthChars[Math.floor(Math.random() * zeroWidthChars.length)];
+        return word.slice(0, splitIndex) + char + word.slice(splitIndex);
+      }
+      return word;
+    })
+    .join(" ");
+}
+
 export async function sendExamReminderEmail(
   params: ExamReminderEmailParams,
 ): Promise<{ success: boolean; error?: string }> {
@@ -62,6 +78,10 @@ export async function sendExamReminderEmail(
   const subject = `ExamMate Reminder: ${courseTitle} (${courseCode})`;
 
   const currentYear = new Date().getFullYear();
+  const antiTrimToken = `\u200C<!-- ${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)} -->`;
+  const footerDisclaimer = injectAntiTrimEntropy(
+    "You're receiving this automated reminder because you synced your exam schedule on ExamMate.",
+  );
 
   const textBody = `Hello ${studentName},
 
@@ -210,7 +230,8 @@ https://exammate.triizync.com
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-top:24px;text-align:center;">
           <tr>
             <td align="center" style="font-size:12px;color:#99d5cf;line-height:1.6;text-align:center;">
-              You're receiving this automated reminder because you synced your exam schedule on ExamMate.<br>
+              <span style="opacity:0;font-size:0;line-height:0;height:0;display:inline-block;overflow:hidden;mso-hide:all;">${antiTrimToken}</span>
+              ${footerDisclaimer}<br>
               &copy; ${currentYear} ExamMate &middot; Developed by <a href="https://ahnafabir.vercel.app" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">Ahnaf Shahriar Abir</a>.
             </td>
           </tr>
@@ -229,6 +250,9 @@ https://exammate.triizync.com
       subject,
       text: textBody,
       html: htmlBody,
+      headers: {
+        "X-Entity-Ref-ID": `exammate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      },
     });
     return { success: true };
   } catch (error) {
