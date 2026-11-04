@@ -63,7 +63,7 @@ Time: ${examTimeFormatted}
 • Student ID Card & Admit Card.
 • Necessary stationery (pens, pencils, ruler).
 • Approved calculator (if permitted for this exam).
-• Arrive at the exam hall at least 15- 20 minutes before start time.
+• Arrive at the exam hall at least 15 - 20 minutes before start time.
 
 Wishing you the best of luck for your exam!🎯
 
@@ -85,11 +85,11 @@ https://exammate.triizync.com
     <tr>
       <td align="center">
         
-        <!-- Header outside the white card (Left-aligned, clean logo without border or tagline, matching 1st mail) -->
-        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-bottom:18px;">
+        <!-- Header outside the white card (Centered, clean logo without border + tagline) -->
+        <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-bottom:24px;text-align:center;">
           <tr>
-            <td align="left" style="text-align:left;">
-              <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0;">
+            <td align="center" style="text-align:center;">
+              <table role="presentation" border="0" cellpadding="0" cellspacing="0" style="margin:0 auto;">
                 <tr>
                   ${hasLocalLogo ? `
                   <td valign="middle" style="vertical-align:middle;padding-right:8px;line-height:0;">
@@ -97,12 +97,15 @@ https://exammate.triizync.com
                   </td>
                   ` : ""}
                   <td valign="middle" style="vertical-align:middle;line-height:1;">
-                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:24px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;line-height:1;display:block;">
+                    <span style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:25px;font-weight:800;letter-spacing:-0.03em;color:#ffffff;line-height:1;display:block;">
                       Exam<span style="color:#5eead4;">Mate</span>
                     </span>
                   </td>
                 </tr>
               </table>
+              <div style="font-size:13px;color:#99d5cf;margin-top:7px;font-weight:500;letter-spacing:0.02em;">
+                Build your exam routine in minutes
+              </div>
             </td>
           </tr>
         </table>
@@ -117,11 +120,8 @@ https://exammate.triizync.com
                 Hello ${escapeHtml(studentName)},
               </h2>
               
-              <p style="margin:0 0 10px 0;color:#334155;font-size:14.5px;line-height:1.65;">
-                Hope your exam preparation is going smoothly.
-              </p>
-              
               <p style="margin:0 0 20px 0;color:#334155;font-size:14.5px;line-height:1.65;">
+                Hope your exam preparation is going smoothly.<br>
                 This is a friendly automated reminder from <strong>ExamMate</strong> that you have an upcoming exam scheduled for tomorrow.
               </p>
 
@@ -166,14 +166,14 @@ https://exammate.triizync.com
                       <li style="margin-bottom:4px;">Student ID Card &amp; Admit Card.</li>
                       <li style="margin-bottom:4px;">Necessary stationery (pens, pencils, ruler).</li>
                       <li style="margin-bottom:4px;">Approved calculator (if permitted for this exam).</li>
-                      <li>Arrive at the exam hall at least 15- 20 minutes before start time.</li>
+                      <li>Arrive at the exam hall at least 15 - 20 minutes before start time.</li>
                     </ul>
                   </td>
                 </tr>
               </table>
 
-              <!-- Encouragement -->
-              <p style="margin:0 0 24px 0;color:#0f172a;font-weight:700;font-size:15px;">
+              <!-- Centered Encouragement -->
+              <p style="margin:0 0 24px 0;color:#0f172a;font-weight:700;font-size:15px;text-align:center;">
                 Wishing you the best of luck for your exam!🎯
               </p>
 
@@ -190,12 +190,12 @@ https://exammate.triizync.com
           </tr>
         </table>
 
-        <!-- Outer Dark Footer -->
+        <!-- Outer Dark Footer with link to ahnafabir.vercel.app -->
         <table role="presentation" width="100%" border="0" cellpadding="0" cellspacing="0" style="max-width:580px;margin-top:24px;text-align:center;">
           <tr>
             <td align="center" style="font-size:12px;color:#99d5cf;line-height:1.6;text-align:center;">
               You're receiving this automated reminder because you synced your exam schedule on ExamMate.<br>
-              &copy; 2026 ExamMate &middot; Developed by <a href="https://exammate.triizync.com" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">Ahnaf Shahriar Abir</a>.
+              &copy; 2026 ExamMate &middot; Developed by <a href="https://ahnafabir.vercel.app" style="color:#5eead4;text-decoration:none;font-weight:600;" target="_blank">Ahnaf Shahriar Abir</a>.
             </td>
           </tr>
         </table>
