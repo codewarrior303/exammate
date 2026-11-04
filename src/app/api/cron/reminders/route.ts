@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getDueReminders, markReminderSent } from "@/lib/reminders";
-import { sendExamReminderEmail } from "@/lib/email";
+import { sendExamReminderEmail, resetProviderExhaustion } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
 
@@ -30,8 +30,11 @@ async function handleReminders(request: NextRequest) {
       });
     }
 
+    resetProviderExhaustion();
     let sent = 0;
     let failed = 0;
+    let deferred = 0;
+    let allQuotaExhausted = false;
 
     // Group due reminders by userEmail so users with multiple exams receive one consolidated email
     const userGroups = new Map<string, typeof dueReminders>();
@@ -43,6 +46,11 @@ async function handleReminders(request: NextRequest) {
     }
 
     for (const [userEmail, reminders] of userGroups) {
+      if (allQuotaExhausted) {
+        deferred += reminders.length;
+        continue;
+      }
+
       const result = await sendExamReminderEmail({
         to: userEmail,
         studentName: reminders[0].studentName,
@@ -62,6 +70,12 @@ async function handleReminders(request: NextRequest) {
           }
         }
         sent += reminders.length;
+      } else if (result.error === "ALL_PROVIDERS_EXHAUSTED" || result.allExhausted) {
+        console.warn(
+          `[Cron Reminders] All email providers exhausted daily sending limits. Safely deferring remaining reminders without dropping data.`,
+        );
+        allQuotaExhausted = true;
+        deferred += reminders.length;
       } else {
         console.error(`Failed to send reminder for ${userEmail}:`, result.error);
         failed += reminders.length;
@@ -73,6 +87,8 @@ async function handleReminders(request: NextRequest) {
       total: dueReminders.length,
       sent,
       failed,
+      deferred,
+      quotaExhausted: allQuotaExhausted,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

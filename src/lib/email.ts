@@ -1,4 +1,4 @@
-import nodemailer from "nodemailer";
+import nodemailer, { type Transporter } from "nodemailer";
 
 export interface ExamReminderItem {
   courseCode: string;
@@ -19,18 +19,97 @@ export interface ExamReminderEmailParams {
   examTimeFormatted?: string;
 }
 
-function getTransporter() {
-  const user = process.env.EMAIL_USER;
-  const pass = process.env.EMAIL_PASS;
+export type EmailProviderName = "gmail" | "brevo" | "fallback";
 
-  if (!user || !pass) {
-    return null;
+interface ConfiguredTransporter {
+  name: EmailProviderName;
+  transporter: Transporter;
+  senderAddress: string;
+}
+
+const exhaustedProviders = new Set<EmailProviderName>();
+
+export function resetProviderExhaustion(): void {
+  exhaustedProviders.clear();
+}
+
+function getTransporters(): ConfiguredTransporter[] {
+  const list: ConfiguredTransporter[] = [];
+
+  // 1. Primary: Gmail SMTP (up to 500 emails/day)
+  const gmailUser = process.env.EMAIL_USER;
+  const gmailPass = process.env.EMAIL_PASS;
+  if (gmailUser && gmailPass) {
+    list.push({
+      name: "gmail",
+      senderAddress: gmailUser,
+      transporter: nodemailer.createTransport({
+        service: "gmail",
+        auth: { user: gmailUser, pass: gmailPass },
+      }),
+    });
   }
 
-  return nodemailer.createTransport({
-    service: "gmail",
-    auth: { user, pass },
-  });
+  // 2. Secondary: Brevo SMTP (up to 300 emails/day)
+  const brevoPass =
+    process.env.BREVO_PASS ||
+    process.env.BREVO_API_KEY ||
+    process.env.BREVO_SMTP_KEY;
+  const brevoUser = process.env.BREVO_USER || gmailUser;
+  if (brevoUser && brevoPass) {
+    list.push({
+      name: "brevo",
+      senderAddress: gmailUser || brevoUser,
+      transporter: nodemailer.createTransport({
+        host: "smtp-relay.brevo.com",
+        port: 587,
+        secure: false,
+        auth: { user: brevoUser, pass: brevoPass },
+      }),
+    });
+  }
+
+  // 3. Tertiary: Fallback SMTP (Resend / AWS SES / Custom SMTP for 800+ scaling)
+  const fallbackHost =
+    process.env.FALLBACK_SMTP_HOST ||
+    (process.env.RESEND_API_KEY ? "smtp.resend.com" : "");
+  const fallbackPass =
+    process.env.FALLBACK_SMTP_PASS || process.env.RESEND_API_KEY;
+  const fallbackUser =
+    process.env.FALLBACK_SMTP_USER ||
+    (process.env.RESEND_API_KEY ? "resend" : "");
+  if (fallbackHost && fallbackPass) {
+    list.push({
+      name: "fallback",
+      senderAddress:
+        process.env.FALLBACK_FROM_ADDRESS ||
+        gmailUser ||
+        "notifications@exammate.triizync.com",
+      transporter: nodemailer.createTransport({
+        host: fallbackHost,
+        port: Number(process.env.FALLBACK_SMTP_PORT) || 587,
+        secure: process.env.FALLBACK_SMTP_PORT === "465",
+        auth: { user: fallbackUser, pass: fallbackPass },
+      }),
+    });
+  }
+
+  return list;
+}
+
+function isQuotaExhaustedError(errMessage: string): boolean {
+  const m = errMessage.toLowerCase();
+  return (
+    m.includes("daily sending quota exceeded") ||
+    m.includes("daily user sending limit exceeded") ||
+    m.includes("550 5.4.5") ||
+    m.includes("550-5.7.1") ||
+    m.includes("rate limit") ||
+    m.includes("quota") ||
+    m.includes("too many") ||
+    m.includes("limit exceeded") ||
+    m.includes("account suspended")
+  );
 }
 
 function escapeHtml(text: string): string {
@@ -65,12 +144,29 @@ function injectAntiTrimEntropy(text: string): string {
 
 export async function sendExamReminderEmail(
   params: ExamReminderEmailParams,
-): Promise<{ success: boolean; error?: string }> {
-  const transporter = getTransporter();
-  if (!transporter) {
+): Promise<{
+  success: boolean;
+  provider?: EmailProviderName;
+  error?: string;
+  allExhausted?: boolean;
+}> {
+  const transporters = getTransporters();
+  if (!transporters.length) {
     return {
       success: false,
-      error: "Email credentials not configured in EMAIL_USER and EMAIL_PASS.",
+      error: "No email credentials configured. Please set EMAIL_USER/EMAIL_PASS or BREVO credentials.",
+    };
+  }
+
+  const availableTransporters = transporters.filter(
+    (t) => !exhaustedProviders.has(t.name),
+  );
+
+  if (!availableTransporters.length) {
+    return {
+      success: false,
+      error: "ALL_PROVIDERS_EXHAUSTED",
+      allExhausted: true,
     };
   }
 
@@ -310,25 +406,44 @@ https://exammate.triizync.com
 </body>
 </html>`;
 
-  try {
-    await transporter.sendMail({
-      from: `"ExamMate" <${fromAddress}>`,
-      to,
-      subject,
-      text: textBody,
-      html: htmlBody,
-      headers: {
-        "X-Entity-Ref-ID": `exammate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      },
-    });
-    return { success: true };
-  } catch (error) {
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to send email via SMTP.",
-    };
+  let lastError = "";
+
+  for (const item of availableTransporters) {
+    try {
+      const fromAddress = item.senderAddress;
+      await item.transporter.sendMail({
+        from: `"ExamMate" <${fromAddress}>`,
+        to,
+        subject,
+        text: textBody,
+        html: htmlBody,
+        headers: {
+          "X-Entity-Ref-ID": `exammate-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        },
+      });
+      return { success: true, provider: item.name };
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      lastError = msg;
+      if (isQuotaExhaustedError(msg)) {
+        console.warn(
+          `[Email Provider] ${item.name} hit daily sending quota. Switching to fallback provider.`,
+        );
+        exhaustedProviders.add(item.name);
+      } else {
+        console.warn(
+          `[Email Provider] ${item.name} failed (${msg}). Trying fallback provider.`,
+        );
+      }
+    }
   }
+
+  const allExhausted = transporters.every((t) => exhaustedProviders.has(t.name));
+  return {
+    success: false,
+    error: allExhausted
+      ? "ALL_PROVIDERS_EXHAUSTED"
+      : lastError || "Failed to send email via available SMTP providers.",
+    allExhausted,
+  };
 }

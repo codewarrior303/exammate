@@ -118,7 +118,7 @@ export async function getDueReminders(now: Date = new Date()): Promise<ExamRemin
         $gt: reminderWindowStart,
         $lte: reminderWindowEnd,
       },
-    }).limit(100).toArray();
+    }).limit(2500).toArray();
   } catch (error) {
     console.error("Failed to fetch due reminders from database:", error);
     return [];
